@@ -4,10 +4,11 @@
   "description": "Account and authentication service for kuhyakuya.com",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "node -r dotenv/config src/server.js",
+    "dev": "node -r dotenv/config src/server.js",
     "db:init": "node scripts/db-init.js",
-    "db:seed": "node scripts/db-seed.js"
+    "db:seed": "node scripts/db-seed.js",
+    "db:migrate": "node -r dotenv/config src/db/migrate.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
@@ -15,6 +16,6 @@
     "express-session": "^1.18.0",
     "qrcode": "^1.5.4",
     "speakeasy": "^2.0.0",
-    "sqlite3": "^5.1.7"
+    "better-sqlite3": "^11.8.1"
   }
 }
