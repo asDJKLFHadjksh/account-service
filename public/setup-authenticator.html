@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Setup Authenticator</title><link rel="stylesheet" href="/styles.css"></head>
+<body><div class="container"><div class="panel"><h1>Setup Authenticator</h1><div id="setupBox"><p>Scan the QR code or use manual key.</p><div class="card" id="qrWrap"></div><div class="card" id="manual"></div>
+<form id="otpForm"><div class="form-row"><label>OTP code</label><input name="otp" required></div><button type="submit">Verify & activate</button></form></div>
+<div id="codesBox" style="display:none"><h2>Recovery codes</h2><p class="notice">Save these once. Each code can be used one time.</p><div class="card code-grid" id="codes"></div><button id="copyBtn" class="secondary">Copy codes</button> <button id="downloadBtn" class="secondary">Download .txt</button><p><a href="/dashboard">Continue to dashboard</a></p></div>
+<div id="msg" class="message"></div></div></div>
+<script src="/common.js"></script>
+<script>
+async function loadSetup(){
+  const params = new URLSearchParams(location.search);
+  if (params.get('done') === '1') {
+    document.getElementById('setupBox').style.display = 'none';
+    document.getElementById('codesBox').style.display = 'block';
+    try {
+      const res = await fetch('/api/recovery-codes');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No recovery codes');
+      const codes = data.codes;
+      document.getElementById('codes').innerHTML = codes.map(c=>`<div>${c}</div>`).join('');
+      window._codes = codes;
+    } catch (err) { showMessage('msg', err.message, 'error'); }
+    return;
+  }
+  try {
+    const res = await fetch('/api/setup-authenticator');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load setup data');
+    document.getElementById('qrWrap').innerHTML = `<img src="${data.qrDataUrl}" alt="Authenticator QR" style="width:200px;height:200px">`;
+    document.getElementById('manual').textContent = `Manual secret: ${data.manualKey}`;
+  } catch(err){ showMessage('msg', err.message, 'error'); }
+}
+
+document.getElementById('otpForm').addEventListener('submit', async (e)=>{e.preventDefault();const form=new FormData(e.target);try{const res=await postJson('/setup-authenticator/verify',Object.fromEntries(form.entries()));location.href=res.redirectTo;}catch(err){showMessage('msg',err.message,'error');}});
+
+document.getElementById('copyBtn').addEventListener('click', async ()=>{ if(!window._codes) return; await navigator.clipboard.writeText(window._codes.join('\n')); showMessage('msg','Copied to clipboard.','success');});
+document.getElementById('downloadBtn').addEventListener('click', ()=>{if(!window._codes) return;const blob=new Blob([window._codes.join('\n')],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='recovery-codes.txt';a.click();});
+loadSetup();
+</script></body></html>

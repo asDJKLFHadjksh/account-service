@@ -1,0 +1,4 @@
+node_modules
+.env
+account-service.sqlite
+npm-debug.log*

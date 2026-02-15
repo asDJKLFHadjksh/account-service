@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Login</title><link rel="stylesheet" href="/styles.css"></head>
+<body><div class="container"><div class="panel"><h1>Login</h1>
+<form id="loginForm">
+<div class="form-row"><label>Username</label><input name="username" required></div>
+<div class="form-row"><label>Password</label><input name="password" type="password" required></div>
+<button type="submit">Login</button>
+</form>
+<div id="msg" class="message"></div>
+<p><a href="/forgot-password">Forgot password?</a> · <a href="/register">Register</a></p>
+</div></div>
+<script src="/common.js"></script><script>
+document.getElementById('loginForm').addEventListener('submit', async (e)=>{e.preventDefault();const form=new FormData(e.target);try{const res=await postJson('/login',Object.fromEntries(form.entries()));location.href=res.redirectTo;}catch(err){showMessage('msg',err.message,'error');}});
+</script></body></html>
