@@ -16,6 +16,7 @@
     "express-session": "^1.18.0",
     "qrcode": "^1.5.4",
     "speakeasy": "^2.0.0",
-    "better-sqlite3": "^11.8.1"
+    "better-sqlite3": "^11.8.1",
+    "bcryptjs": "^2.4.3"
   }
 }

@@ -15,6 +15,7 @@ const {
   generateRecoveryCodes,
 } = require('./src/security');
 const { canAttempt, registerFailure, clearAttempts } = require('./src/rateLimit');
+const authRoutes = require('./src/routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,6 +41,7 @@ app.use(
 );
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/api', authRoutes);
 
 const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
 
