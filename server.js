@@ -79,6 +79,10 @@ app.get('/health', (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/', (req, res) => {
+  res.redirect('/login');
+});
+
 app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/setup-authenticator', (req, res) => res.sendFile(path.join(__dirname, 'public', 'setup-authenticator.html')));
