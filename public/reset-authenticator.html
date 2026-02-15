@@ -1,0 +1,32 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Reset Authenticator</title><link rel="stylesheet" href="/styles.css"></head>
+<body><div class="container"><div class="panel"><h1>Reset authenticator</h1>
+<div id="stage1"><p>Enter username and a recovery code.</p><form id="startForm">
+<div class="form-row"><label>Username</label><input name="username" required></div>
+<div class="form-row"><label>Recovery code</label><input name="recoveryCode" placeholder="1234-5678" required></div>
+<button type="submit">Start reset</button></form></div>
+<div id="stage2" style="display:none"><p>Scan new QR, then verify OTP.</p><div class="card" id="qrWrap"></div><div class="card" id="manual"></div><form id="verifyForm"><div class="form-row"><label>OTP</label><input name="otp" required></div><button type="submit">Finish reset</button></form></div>
+<div id="stage3" style="display:none"><h2>New recovery codes</h2><div class="card code-grid" id="codes"></div><p><a href="/login">Return to login</a></p></div>
+<div id="msg" class="message"></div></div></div><script src="/common.js"></script><script>
+const params = new URLSearchParams(location.search);
+async function maybeLoadStep2(){
+  if(params.get('step')==='verify'){
+    document.getElementById('stage1').style.display='none';
+    document.getElementById('stage2').style.display='block';
+    const res=await fetch('/api/setup-authenticator');
+    const data=await res.json();
+    if(!res.ok) return showMessage('msg', data.error || 'Could not load QR','error');
+    document.getElementById('qrWrap').innerHTML=`<img src="${data.qrDataUrl}" alt="QR" style="width:200px;height:200px">`;
+    document.getElementById('manual').textContent=`Manual secret: ${data.manualKey}`;
+  }
+  if(params.get('done')==='1'){
+    document.getElementById('stage1').style.display='none';document.getElementById('stage2').style.display='none';document.getElementById('stage3').style.display='block';
+    const res=await fetch('/api/recovery-codes');const data=await res.json();
+    if(!res.ok) return showMessage('msg',data.error||'Could not load codes','error');
+    document.getElementById('codes').innerHTML=data.codes.map(c=>`<div>${c}</div>`).join('');
+  }
+}
+maybeLoadStep2();
+document.getElementById('startForm').addEventListener('submit',async(e)=>{e.preventDefault();const form=new FormData(e.target);try{const res=await postJson('/reset-authenticator',Object.fromEntries(form.entries()));location.href=res.redirectTo;}catch(err){showMessage('msg',err.message,'error');}});
+document.getElementById('verifyForm').addEventListener('submit',async(e)=>{e.preventDefault();const form=new FormData(e.target);try{const res=await postJson('/reset-authenticator/verify',Object.fromEntries(form.entries()));location.href=res.redirectTo;}catch(err){showMessage('msg',err.message,'error');}});
+</script></body></html>
