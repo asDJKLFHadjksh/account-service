@@ -8,30 +8,29 @@
 <script src="/common.js"></script>
 <script>
 async function loadSetup(){
-  const params = new URLSearchParams(location.search);
-  if (params.get('done') === '1') {
-    document.getElementById('setupBox').style.display = 'none';
-    document.getElementById('codesBox').style.display = 'block';
-    try {
-      const res = await fetch('/api/recovery-codes');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'No recovery codes');
-      const codes = data.codes;
-      document.getElementById('codes').innerHTML = codes.map(c=>`<div>${c}</div>`).join('');
-      window._codes = codes;
-    } catch (err) { showMessage('msg', err.message, 'error'); }
-    return;
-  }
   try {
-    const res = await fetch('/api/setup-authenticator');
+    const res = await fetch('/api/otp/setup', { credentials: 'include' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to load setup data');
-    document.getElementById('qrWrap').innerHTML = `<img src="${data.qrDataUrl}" alt="Authenticator QR" style="width:200px;height:200px">`;
-    document.getElementById('manual').textContent = `Manual secret: ${data.manualKey}`;
+
+    const qrSrc = `https://quickchart.io/qr?size=220&text=${encodeURIComponent(data.otpauthUrl)}`;
+    document.getElementById('qrWrap').innerHTML = `<img src="${qrSrc}" alt="Authenticator QR" style="width:200px;height:200px">`;
+    document.getElementById('manual').textContent = `Manual secret: ${data.secret}`;
   } catch(err){ showMessage('msg', err.message, 'error'); }
 }
 
-document.getElementById('otpForm').addEventListener('submit', async (e)=>{e.preventDefault();const form=new FormData(e.target);try{const res=await postJson('/setup-authenticator/verify',Object.fromEntries(form.entries()));location.href=res.redirectTo;}catch(err){showMessage('msg',err.message,'error');}});
+document.getElementById('otpForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const form = new FormData(e.target);
+  const token = String(form.get('otp') || '').trim();
+  try {
+    const res = await postJson('/api/otp/enable', { token });
+    if (res.ok) {
+      showMessage('msg', 'Authenticator berhasil diaktifkan.', 'success');
+      setTimeout(() => { location.href = '/dashboard.html'; }, 800);
+    }
+  } catch(err){ showMessage('msg', err.message, 'error'); }
+});
 
 document.getElementById('copyBtn').addEventListener('click', async ()=>{ if(!window._codes) return; await navigator.clipboard.writeText(window._codes.join('\n')); showMessage('msg','Copied to clipboard.','success');});
 document.getElementById('downloadBtn').addEventListener('click', ()=>{if(!window._codes) return;const blob=new Blob([window._codes.join('\n')],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='recovery-codes.txt';a.click();});
