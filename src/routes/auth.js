@@ -125,45 +125,42 @@ router.get('/me', (req, res) => {
 });
 
 router.get('/otp/setup', requireLogin, (req, res) => {
-  try {
-    const db = getDb();
-    const user = db
-      .prepare('SELECT username, totp_secret, totp_enabled FROM users WHERE id=?')
-      .get(req.session.userId);
+  const db = getDb();
+  const user = db
+    .prepare('SELECT username, totp_secret, totp_enabled FROM users WHERE id=?')
+    .get(req.session.userId);
 
-    if (!user) return res.status(401).json({ ok: false, error: 'Session invalid' });
+  if (!user) {
+    return res.status(401).json({ ok: false, error: 'Session invalid' });
+  }
 
-    let secret = user.totp_secret;
-    if (!secret) {
-      const generated = speakeasy.generateSecret({
-        name: `Kuhyakuya Account (${user.username})`,
-        length: 20,
-      });
-      secret = generated.base32;
-      db.prepare("UPDATE users SET totp_secret=?, updated_at=datetime('now') WHERE id=?").run(
-        secret,
-        req.session.userId
-      );
-    }
-
-    const label = `Kuhyakuya Account (${user.username})`;
-    const otpauthUrl = speakeasy.otpauthURL({
-      secret,
-      label,
-      issuer: 'Kuhyakuya',
-      encoding: 'base32',
+  if (!user.totp_secret) {
+    const secret = speakeasy.generateSecret({
+      name: `Kuhyakuya Account (${user.username})`,
+      length: 20,
     });
+
+    db.prepare('UPDATE users SET totp_secret=? WHERE id=?').run(secret.base32, req.session.userId);
 
     return res.json({
       ok: true,
-      totpEnabled: !!user.totp_enabled,
-      secret,
-      otpauthUrl,
+      secret: secret.base32,
+      otpauthUrl: secret.otpauth_url,
     });
-  } catch (e) {
-    console.error(e);
-    return res.status(500).json({ ok: false, error: 'Server error' });
   }
+
+  const otpauthUrl = speakeasy.otpauthURL({
+    secret: user.totp_secret,
+    label: `Kuhyakuya Account (${user.username})`,
+    issuer: 'Kuhyakuya',
+    encoding: 'base32',
+  });
+
+  return res.json({
+    ok: true,
+    secret: user.totp_secret,
+    otpauthUrl,
+  });
 });
 
 router.post('/otp/enable', requireLogin, (req, res) => {
