@@ -8,15 +8,8 @@
 <button type="submit">Register</button>
 </form>
 <div id="msg" class="message"></div>
-<p><a href="/login">Already have an account? Login</a></p></div></div>
+<p><a href="/login.html">Already have an account? Login</a></p></div></div>
 <script src="/common.js"></script>
 <script>
-document.getElementById('registerForm').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const form = new FormData(e.target);
-  try {
-    const res = await postJson('/register', Object.fromEntries(form.entries()));
-    location.href = res.redirectTo;
-  } catch(err){ showMessage('msg', err.message, 'error'); }
-});
+  bindRegisterForm();
 </script></body></html>

@@ -82,7 +82,7 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.redirect('/login');
+  res.redirect('/login.html');
 });
 
 app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));

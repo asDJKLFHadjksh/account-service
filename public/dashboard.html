@@ -2,8 +2,19 @@
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dashboard</title><link rel="stylesheet" href="/styles.css"></head>
 <body><div class="container"><div class="panel"><div class="topbar"><h1>Dashboard</h1><button id="logoutBtn" class="secondary">Logout</button></div>
 <div class="card">Placeholder Module A</div><div class="card">Placeholder Module B</div><div class="card">Placeholder Module C</div>
-<p><a href="/settings/username">Change username</a> · <a href="/reset-authenticator">Reset authenticator</a></p>
+<p><a href="/settings-username.html">Change username</a> · <a href="/reset-authenticator.html">Reset authenticator</a></p>
 <div id="msg" class="message"></div></div></div>
 <script src="/common.js"></script><script>
-document.getElementById('logoutBtn').addEventListener('click',async()=>{try{const res=await postJson('/logout',{});location.href=res.redirectTo;}catch(err){showMessage('msg',err.message,'error');}});
+(async () => {
+  await requireSession();
+})();
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  try {
+    await postJson('/api/logout', {});
+    location.href = '/login.html';
+  } catch (err) {
+    showMessage('msg', err.message, 'error');
+  }
+});
 </script></body></html>
