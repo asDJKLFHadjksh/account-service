@@ -8,8 +8,8 @@
 <button type="submit">Login</button>
 </form>
 <div id="msg" class="message"></div>
-<p><a href="/forgot-password">Forgot password?</a> · <a href="/register">Register</a></p>
+<p><a href="/forgot-password.html">Forgot password?</a> · <a href="/register.html">Register</a></p>
 </div></div>
 <script src="/common.js"></script><script>
-document.getElementById('loginForm').addEventListener('submit', async (e)=>{e.preventDefault();const form=new FormData(e.target);try{const res=await postJson('/login',Object.fromEntries(form.entries()));location.href=res.redirectTo;}catch(err){showMessage('msg',err.message,'error');}});
+  bindLoginForm();
 </script></body></html>

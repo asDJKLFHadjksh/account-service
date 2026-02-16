@@ -2,7 +2,7 @@ const express = require('express');
 const speakeasy = require('speakeasy');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('../db');
-const { hashPassword } = require('../utils/hash');
+const { hashPassword, verifyPassword } = require('../utils/hash');
 const { generateRecoveryCodes } = require('../utils/recoveryCodes');
 const { validateUsername, validatePassword } = require('../utils/validate');
 
@@ -11,8 +11,9 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   try {
     const { username, password } = req.body || {};
+    const normalizedUsername = String(username || '').toLowerCase();
 
-    const uErr = validateUsername(username);
+    const uErr = validateUsername(normalizedUsername);
     if (uErr) return res.status(400).json({ ok: false, error: uErr });
 
     const pErr = validatePassword(password);
@@ -32,7 +33,7 @@ router.post('/register', async (req, res) => {
           `INSERT INTO users (username, password_hash, totp_secret, totp_enabled)
            VALUES (?, ?, ?, 0)`
         )
-        .run(username, passwordHash, totp.base32);
+        .run(normalizedUsername, passwordHash, totp.base32);
 
       const userId = insertUser.lastInsertRowid;
       const plainCodes = generateRecoveryCodes(10);
@@ -55,7 +56,7 @@ router.post('/register', async (req, res) => {
 
     return res.status(201).json({
       ok: true,
-      user: { id: userId, username, totpEnabled: false },
+      user: { id: userId, username: normalizedUsername, totpEnabled: false },
       totp: { secret: totp.base32, otpauthUrl: totp.otpauth_url },
       recoveryCodes: plainCodes,
       note: 'Simpan TOTP secret & recovery codes sekarang. Recovery codes cuma muncul sekali.',
@@ -70,6 +71,54 @@ router.post('/register', async (req, res) => {
     console.error(err);
     return res.status(500).json({ ok: false, error: 'Server error' });
   }
+});
+
+router.post('/login', async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ ok: false, error: 'Username & password wajib' });
+    }
+
+    const db = getDb();
+    const user = db
+      .prepare('SELECT id, username, password_hash, totp_enabled FROM users WHERE username=?')
+      .get(String(username).toLowerCase());
+
+    if (!user) return res.status(401).json({ ok: false, error: 'Username atau password salah' });
+
+    const ok = await verifyPassword(password, user.password_hash);
+    if (!ok) return res.status(401).json({ ok: false, error: 'Username atau password salah' });
+
+    req.session.userId = user.id;
+
+    return res.json({
+      ok: true,
+      user: { id: user.id, username: user.username, totpEnabled: !!user.totp_enabled },
+    });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+router.get('/me', (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ ok: false, error: 'Not logged in' });
+
+  const db = getDb();
+  const user = db.prepare('SELECT id, username, totp_enabled FROM users WHERE id=?').get(req.session.userId);
+  if (!user) return res.status(401).json({ ok: false, error: 'Session invalid' });
+
+  return res.json({
+    ok: true,
+    user: { id: user.id, username: user.username, totpEnabled: !!user.totp_enabled },
+  });
+});
+
+router.post('/logout', (req, res) => {
+  req.session?.destroy(() => {
+    res.json({ ok: true });
+  });
 });
 
 module.exports = router;
