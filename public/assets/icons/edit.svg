@@ -1,4 +1,23 @@
-<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M10.8 2.2a1.7 1.7 0 1 1 2.4 2.4L6.1 11.8l-2.9.5.5-2.9 7.1-7.2Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M9.6 3.4 12.6 6.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Creator: CorelDRAW 2021.5 -->
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="3.1142mm" height="3.1407mm" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
+viewBox="0 0 6.02 6.07"
+ xmlns:xlink="http://www.w3.org/1999/xlink"
+ xmlns:xodm="http://www.corel.com/coreldraw/odm/2003">
+ <defs>
+  <style type="text/css">
+   <![CDATA[
+    .str0 {stroke:#8A4EFF;stroke-width:0.61;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:22.9256}
+    .fil0 {fill:none}
+   ]]>
+  </style>
+ </defs>
+ <g id="Layer_x0020_1">
+  <metadata id="CorelCorpID_0Corel-Layer"/>
+  <g id="_2474420191648">
+   <path class="fil0 str0" d="M4.19 0.6c0.16,-0.19 0.4,-0.29 0.65,-0.29 0.48,0 0.87,0.39 0.87,0.87 0,0.25 -0.11,0.49 -0.29,0.65l-3.63 3.68 -1.48 0.26 0.26 -1.48 3.63 -3.68z"/>
+   <line class="fil0 str0" x1="3.66" y1="1.07" x2="4.98" y2= "2.39" />
+  </g>
+ </g>
 </svg>
