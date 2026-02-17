@@ -8,6 +8,7 @@ const { generateRecoveryCodes } = require('../utils/recoveryCodes');
 const { validateUsername, validatePassword } = require('../utils/validate');
 
 const router = express.Router();
+const RECOVERY_CODE_COUNT = 10;
 
 function requireLogin(req, res, next) {
   if (!req.session?.userId) {
@@ -48,7 +49,7 @@ router.post('/register', async (req, res) => {
         .run(normalizedUsername, passwordHash, totp.base32);
 
       const userId = insertUser.lastInsertRowid;
-      const plainCodes = generateRecoveryCodes(10);
+      const plainCodes = generateRecoveryCodes(RECOVERY_CODE_COUNT);
 
       const insertRC = db.prepare('INSERT INTO recovery_codes (user_id, code_hash) VALUES (?, ?)');
 
@@ -72,7 +73,7 @@ router.post('/register', async (req, res) => {
       totp: { secret: totp.base32, otpauthUrl },
       recoveryCodes: plainCodes,
       next: '/setup-authenticator.html',
-      note: 'Simpan TOTP secret & recovery codes sekarang. Recovery codes cuma muncul sekali.',
+      note: `Simpan TOTP secret & ${RECOVERY_CODE_COUNT} recovery codes sekarang. Recovery codes cuma muncul sekali.`,
     });
   } catch (err) {
     if (

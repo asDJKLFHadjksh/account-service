@@ -10,7 +10,7 @@
   <div class="container">
     <div class="panel panel-kuhya card-accent">
       <h1>Save your recovery codes</h1>
-      <p class="notice">Simpan sekarang. Kode ini cuma muncul sekali dan tiap kode hanya bisa dipakai 1x.</p>
+      <p class="notice">Simpan sekarang. Kami kasih 10 recovery code, cuma muncul sekali, dan tiap kode hanya bisa dipakai 1x.</p>
 
       <div class="card code-grid" id="codes"></div>
 
@@ -19,12 +19,13 @@
         <button type="button" id="downloadBtn" class="secondary">Download .txt</button>
       </div>
 
-      <label style="display:flex; gap:10px; align-items:flex-start; margin-top:16px; color: var(--text);">
-        <input id="savedCheck" type="checkbox" style="width:auto; margin-top:2px;">
-        <span>I have saved these codes</span>
+      <label class="k-check" style="margin-top:16px;">
+        <input id="savedCheck" type="checkbox">
+        <span class="k-box" aria-hidden="true"></span>
+        <span class="k-text">I have saved these codes</span>
       </label>
 
-      <button type="button" id="continueBtn" class="btn-accent" disabled style="margin-top:12px; opacity:.65; cursor:not-allowed;">Continue</button>
+      <button type="button" id="continueBtn" class="btn-accent" disabled style="margin-top:12px;">Continue</button>
       <div id="msg" class="message"></div>
     </div>
   </div>
@@ -53,6 +54,17 @@
         return;
       }
 
+      codes = codes
+        .map((code) => String(code || '').replace(/-/g, '').trim())
+        .filter(Boolean)
+        .slice(0, 10);
+
+      if (codes.length !== 10) {
+        sessionStorage.removeItem('recoveryCodes');
+        window.location.href = '/register.html';
+        return;
+      }
+
       const codesEl = document.getElementById('codes');
       const check = document.getElementById('savedCheck');
       const continueBtn = document.getElementById('continueBtn');
@@ -72,12 +84,13 @@
         a.click();
       });
 
-      check.addEventListener('change', () => {
+      function syncContinue() {
         const enabled = check.checked;
         continueBtn.disabled = !enabled;
-        continueBtn.style.opacity = enabled ? '1' : '.65';
-        continueBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
-      });
+      }
+
+      check.addEventListener('change', syncContinue);
+      syncContinue();
 
       continueBtn.addEventListener('click', () => {
         sessionStorage.removeItem('recoveryCodes');
