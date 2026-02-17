@@ -60,7 +60,8 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to load setup data');
 
-        document.getElementById('qrWrap').innerHTML = `<img src="${data.qrDataUrl}" alt="Authenticator QR">`;
+        const qrSrc = `https://quickchart.io/qr?size=260&text=${encodeURIComponent(data.otpauthUrl)}`;
+        document.getElementById('qrWrap').innerHTML = `<img src="${qrSrc}" alt="Authenticator QR">`;
         document.getElementById('manualSecret').textContent = data.secret;
         window._manualSecret = data.secret;
       } catch (err) {
