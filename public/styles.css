@@ -587,6 +587,8 @@ button.secondary { background: transparent; border-color: var(--border); }
 .k-empty-state {
   margin: 0;
   padding: 18px 14px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
 }
 
 .k-switch {
@@ -649,9 +651,10 @@ button.secondary { background: transparent; border-color: var(--border); }
   width: 100%;
   max-width: 460px;
   background: #101015;
-  border: 1px solid rgba(138, 78, 255, 0.42);
+  border: 1px solid #8A4EFF;
   border-radius: 14px;
   padding: 18px;
+  box-shadow: none;
 }
 
 .k-modal-card h3 {
@@ -842,6 +845,10 @@ button.secondary { background: transparent; border-color: var(--border); }
 .k-shell-action:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.k-shell-action.is-disabled {
+  pointer-events: auto;
 }
 
 .k-page-header h2,

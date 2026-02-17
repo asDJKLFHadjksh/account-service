@@ -42,7 +42,7 @@
           ☰
         </button>
         <h1 class="k-shell-page-title">ID Tag</h1>
-        <button class="k-shell-action" type="button" disabled title="Generator ID Tag segera hadir">
+        <button class="k-shell-action is-disabled" type="button" aria-disabled="true" disabled title="Coming soon">
           <img src="/assets/icons/plus.svg" alt="" width="16" height="16">
           <span>+ ID Tag</span>
         </button>
@@ -58,74 +58,246 @@
             <span>Nama</span>
             <span>Code</span>
             <span class="k-cell-center">Status</span>
-            <span>Switch</span>
+            <span class="k-cell-center">Switch</span>
             <span class="k-cell-center">Edit</span>
           </div>
-
-          <div class="k-row">
-            <span>Bandul Kucing A</span>
-            <span class="k-code-text">123456789012</span>
-            <span class="k-cell-center"><span class="k-pill is-active">Aktif</span></span>
-            <label class="k-switch" title="Belum tersedia">
-              <input type="checkbox" checked disabled>
-              <span class="k-switch-slider" aria-hidden="true"></span>
-            </label>
-            <span class="k-cell-center">
-              <button type="button" class="k-btn-mini" disabled aria-label="Edit ID Tag">
-                <img src="/assets/icons/edit.svg" alt="" width="14" height="14">
-              </button>
-            </span>
-          </div>
-
-          <div class="k-row">
-            <span>Bandul Kucing B</span>
-            <span class="k-code-text">987654321098</span>
-            <span class="k-cell-center"><span class="k-pill is-inactive">Nonaktif</span></span>
-            <label class="k-switch" title="Belum tersedia">
-              <input type="checkbox" disabled>
-              <span class="k-switch-slider" aria-hidden="true"></span>
-            </label>
-            <span class="k-cell-center">
-              <button type="button" class="k-btn-mini" disabled aria-label="Edit ID Tag">
-                <img src="/assets/icons/edit.svg" alt="" width="14" height="14">
-              </button>
-            </span>
-          </div>
-
-          <div class="k-row">
-            <span>Bandul Kucing C</span>
-            <span class="k-code-text">102938475610</span>
-            <span class="k-cell-center"><span class="k-pill is-pending">Belum siap</span></span>
-            <label class="k-switch" title="Belum tersedia">
-              <input type="checkbox" disabled>
-              <span class="k-switch-slider" aria-hidden="true"></span>
-            </label>
-            <span class="k-cell-center">
-              <button type="button" class="k-btn-mini" disabled aria-label="Edit ID Tag">
-                <img src="/assets/icons/edit.svg" alt="" width="14" height="14">
-              </button>
-            </span>
-          </div>
+          <div id="tagRows"></div>
         </div>
+        <p id="tagsEmptyState" class="k-empty-state" hidden>Belum ada ID Tag</p>
       </section>
     </main>
   </div>
 
+  <div id="editTagModal" class="k-modal" hidden>
+    <div class="k-modal-card" role="dialog" aria-modal="true" aria-labelledby="editTagTitle">
+      <h3 id="editTagTitle">Edit ID Tag</h3>
+      <form id="editTagForm" class="k-modal-form">
+        <div class="form-row">
+          <label for="tagNameInput">Nama bandul</label>
+          <input id="tagNameInput" name="name" type="text" maxlength="120" required>
+        </div>
+        <div class="form-row">
+          <label for="tagLocationInput">Catatan lokasi</label>
+          <input id="tagLocationInput" name="meet_location_text" type="text" maxlength="255">
+        </div>
+        <div class="form-row">
+          <label for="tagLinkInput">Direct link override</label>
+          <input id="tagLinkInput" name="contact_link_override" type="url" placeholder="https://example.com">
+        </div>
+        <p id="editTagError" class="message error" hidden></p>
+        <div class="k-modal-actions">
+          <button type="button" class="secondary" id="cancelEditTagBtn">Batal</button>
+          <button type="submit">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toastRoot" class="k-toast-root" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="/common.js"></script>
   <script src="/app-shell.js"></script>
   <script>
     (() => {
-      const formatCode = (rawCode) => {
-        const digitsOnly = rawCode.replace(/\D/g, '');
-        if (digitsOnly.length === 12) {
-          return `${digitsOnly.slice(0, 4)}-${digitsOnly.slice(4, 8)}-${digitsOnly.slice(8, 12)}`;
-        }
-        return rawCode;
-      };
+      const tagRows = document.getElementById('tagRows');
+      const emptyState = document.getElementById('tagsEmptyState');
+      const modal = document.getElementById('editTagModal');
+      const editForm = document.getElementById('editTagForm');
+      const editError = document.getElementById('editTagError');
+      const cancelBtn = document.getElementById('cancelEditTagBtn');
+      const nameInput = document.getElementById('tagNameInput');
+      const locationInput = document.getElementById('tagLocationInput');
+      const linkInput = document.getElementById('tagLinkInput');
 
-      document.querySelectorAll('.k-code-text').forEach((node) => {
-        const originalCode = node.textContent?.trim() ?? '';
-        node.textContent = formatCode(originalCode);
+      let currentTags = [];
+      let editingTagId = null;
+
+      function normalizeTagsResponse(payload) {
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload?.data)) return payload.data;
+        return [];
+      }
+
+      function formatCode12(code12) {
+        const digits = String(code12 || '').replace(/\D/g, '');
+        if (digits.length !== 12) return String(code12 || '-');
+        return `${digits.slice(0, 4)}-${digits.slice(4, 8)}-${digits.slice(8, 12)}`;
+      }
+
+      function isDirectLinkValid(link) {
+        const value = String(link || '').trim();
+        return value.startsWith('https://') && value.length > 8;
+      }
+
+      function mapTag(raw) {
+        return {
+          id: raw.id,
+          name: String(raw.name ?? raw.tag_name ?? '-'),
+          code12: String(raw.code12 ?? raw.unique_code ?? ''),
+          meet_location_text: String(raw.meet_location_text ?? raw.location_note ?? ''),
+          contact_link_override: String(raw.contact_link_override ?? raw.direct_link ?? ''),
+          enabled: Boolean(raw.enabled ?? raw.is_active),
+        };
+      }
+
+      function getStatus(tag) {
+        const linkValid = isDirectLinkValid(tag.contact_link_override);
+        if (!linkValid) return { label: 'Belum siap', cls: 'is-pending', canToggle: false, checked: false };
+        return tag.enabled
+          ? { label: 'Aktif', cls: 'is-active', canToggle: true, checked: true }
+          : { label: 'Nonaktif', cls: 'is-inactive', canToggle: true, checked: false };
+      }
+
+      async function apiGetTags() {
+        return apiFetch('/api/tags');
+      }
+
+      async function apiPatchTag(id, payload) {
+        return apiFetch(`/api/tags/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+      }
+
+      async function apiToggleTag(id, enabled) {
+        return apiFetch(`/api/tags/${id}/toggle`, {
+          method: 'PATCH',
+          body: JSON.stringify({ enabled }),
+        });
+      }
+
+      function openEditModal(tag) {
+        editingTagId = tag.id;
+        nameInput.value = tag.name || '';
+        locationInput.value = tag.meet_location_text || '';
+        linkInput.value = tag.contact_link_override || '';
+        editError.hidden = true;
+        editError.textContent = '';
+        modal.hidden = false;
+        document.body.classList.add('k-lock-scroll');
+      }
+
+      function closeEditModal() {
+        modal.hidden = true;
+        editingTagId = null;
+        editForm.reset();
+        editError.hidden = true;
+        document.body.classList.remove('k-lock-scroll');
+      }
+
+      function renderRows() {
+        tagRows.innerHTML = '';
+        if (!currentTags.length) {
+          emptyState.hidden = false;
+          return;
+        }
+        emptyState.hidden = true;
+
+        currentTags.forEach((tag) => {
+          const status = getStatus(tag);
+          const row = document.createElement('div');
+          row.className = 'k-row';
+          row.innerHTML = `
+            <span>${tag.name}</span>
+            <span class="k-code-text">${formatCode12(tag.code12)}</span>
+            <span class="k-cell-center"><span class="k-pill ${status.cls}">${status.label}</span></span>
+            <span class="k-cell-center">
+              <label class="k-switch" title="${status.canToggle ? 'Ubah status tag' : 'Direct link belum siap'}">
+                <input type="checkbox" data-toggle-id="${tag.id}" ${status.checked ? 'checked' : ''} ${status.canToggle ? '' : 'disabled'}>
+                <span class="k-switch-slider" aria-hidden="true"></span>
+              </label>
+            </span>
+            <span class="k-cell-center">
+              <button type="button" class="k-btn-mini" data-edit-id="${tag.id}" aria-label="Edit ${tag.name}">
+                <img src="/assets/icons/edit.svg" alt="" width="14" height="14">
+              </button>
+            </span>
+          `;
+          tagRows.appendChild(row);
+        });
+      }
+
+      async function loadTags() {
+        try {
+          const payload = await apiGetTags();
+          currentTags = normalizeTagsResponse(payload).map(mapTag);
+          renderRows();
+        } catch (error) {
+          if (String(error.message || '').toLowerCase().includes('sesi habis')) return;
+          showToast('Terjadi kesalahan server', 'error');
+        }
+      }
+
+      tagRows.addEventListener('click', (event) => {
+        const editBtn = event.target.closest('[data-edit-id]');
+        if (!editBtn) return;
+        const id = Number(editBtn.getAttribute('data-edit-id'));
+        const tag = currentTags.find((item) => item.id === id);
+        if (!tag) return;
+        openEditModal(tag);
       });
+
+      tagRows.addEventListener('change', async (event) => {
+        const input = event.target.closest('input[data-toggle-id]');
+        if (!input) return;
+
+        const id = Number(input.getAttribute('data-toggle-id'));
+        const desiredEnabled = input.checked;
+        input.disabled = true;
+
+        try {
+          await apiToggleTag(id, desiredEnabled);
+          await loadTags();
+        } catch (error) {
+          const message = String(error.message || '');
+          if (message.includes('Direct link belum diisi')) {
+            showToast(message, 'error');
+          } else {
+            showToast('Terjadi kesalahan server', 'error');
+          }
+          input.checked = false;
+          await loadTags();
+        }
+      });
+
+      editForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!editingTagId) return;
+
+        const payload = {
+          name: nameInput.value.trim(),
+          meet_location_text: locationInput.value.trim(),
+          contact_link_override: linkInput.value.trim(),
+        };
+
+        const submitBtn = editForm.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        editError.hidden = true;
+
+        try {
+          await apiPatchTag(editingTagId, payload);
+          closeEditModal();
+          await loadTags();
+          showToast('ID Tag berhasil diperbarui', 'success');
+        } catch (error) {
+          const message = String(error.message || 'Gagal menyimpan perubahan');
+          if (message.toLowerCase().includes('sesi habis')) return;
+          editError.textContent = message;
+          editError.hidden = false;
+          if (message.toLowerCase().includes('server')) {
+            showToast('Terjadi kesalahan server', 'error');
+          }
+        } finally {
+          submitBtn.disabled = false;
+        }
+      });
+
+      cancelBtn.addEventListener('click', closeEditModal);
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) closeEditModal();
+      });
+
+      loadTags();
     })();
   </script>
 </body>
