@@ -1,15 +1,60 @@
 <!doctype html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Login</title><link rel="stylesheet" href="/styles.css"></head>
-<body><div class="container"><div class="panel"><h1>Login</h1>
-<form id="loginForm">
-<div class="form-row"><label>Username</label><input name="username" required></div>
-<div class="form-row"><label>Password</label><input name="password" type="password" required></div>
-<button type="submit">Login</button>
-</form>
-<div id="msg" class="message"></div>
-<p><a href="/forgot-password.html">Forgot password?</a> · <a href="/register.html">Register</a></p>
-</div></div>
-<script src="/common.js"></script><script>
-  bindLoginForm();
-</script></body></html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Masuk</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <section class="panel k-auth-card" aria-labelledby="loginTitle">
+      <header class="k-auth-header">
+        <h1 id="loginTitle" class="k-auth-title">Masuk</h1>
+        <p class="k-auth-subtitle">Masukkan username dan kata sandi untuk masuk.</p>
+      </header>
+
+      <form id="loginForm" class="k-auth-form" novalidate>
+        <div class="form-row">
+          <label for="username">Username</label>
+          <input id="username" class="k-input" name="username" autocomplete="username" required>
+        </div>
+
+        <div class="form-row">
+          <div class="k-label-row">
+            <label for="password">Kata sandi</label>
+            <a href="/forgot-password.html" class="k-link">Lupa kata sandi?</a>
+          </div>
+          <div class="k-password-wrap">
+            <input id="password" class="k-input k-input-password" name="password" type="password" minlength="6" autocomplete="current-password" required>
+            <button
+              type="button"
+              class="k-password-toggle"
+              data-password-toggle
+              data-target="password"
+              aria-label="Tampilkan kata sandi"
+            >
+              <span aria-hidden="true" data-eye-icon>👁</span>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="k-btn k-btn-primary">Masuk</button>
+      </form>
+
+      <div id="msg" class="message" role="status" aria-live="polite"></div>
+
+      <p class="k-link-row">
+        Belum punya akun?
+        <a href="/register.html" class="k-link">Daftar</a>
+      </p>
+    </section>
+  </div>
+
+  <script src="/common.js"></script>
+  <script>
+    bindLoginForm();
+    bindPasswordToggles();
+  </script>
+</body>
+</html>
