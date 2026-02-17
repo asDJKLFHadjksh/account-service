@@ -1,15 +1,28 @@
 <!doctype html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Register</title><link rel="stylesheet" href="/styles.css"></head>
-<body><div class="container"><div class="panel"><h1>Create account</h1><p>Username: lowercase letters, numbers, underscore. 3-20 chars.</p>
-<form id="registerForm">
-<div class="form-row"><label>Username</label><input name="username" required></div>
-<div class="form-row"><label>Password</label><input name="password" type="password" minlength="6" required></div>
-<button type="submit">Register</button>
-</form>
-<div id="msg" class="message"></div>
-<p><a href="/login.html">Already have an account? Login</a></p></div></div>
-<script src="/common.js"></script>
-<script>
-  bindRegisterForm();
-</script></body></html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Register</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="panel">
+      <h1>Create account</h1>
+      <p>Username: lowercase letters, numbers, underscore. 3-20 chars.</p>
+      <form id="registerForm">
+        <div class="form-row"><label>Username</label><input name="username" required></div>
+        <div class="form-row"><label>Password</label><input name="password" type="password" minlength="6" required></div>
+        <button type="submit">Register</button>
+      </form>
+      <div id="msg" class="message"></div>
+      <p><a href="/login.html">Already have an account? Login</a></p>
+    </div>
+  </div>
+  <script src="/common.js"></script>
+  <script>
+    bindRegisterForm();
+  </script>
+</body>
+</html>

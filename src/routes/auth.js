@@ -28,9 +28,13 @@ router.post('/register', async (req, res) => {
     if (pErr) return res.status(400).json({ ok: false, error: pErr });
 
     const db = getDb();
-    const totp = speakeasy.generateSecret({
-      name: `Kuhyakuya Account (${username})`,
-      length: 20,
+    const issuer = 'kuhyakuya';
+    const totp = speakeasy.generateSecret({ length: 20 });
+    const otpauthUrl = speakeasy.otpauthURL({
+      secret: totp.base32,
+      label: normalizedUsername,
+      issuer,
+      encoding: 'base32',
     });
 
     const passwordHash = await hashPassword(password);
@@ -65,8 +69,9 @@ router.post('/register', async (req, res) => {
     return res.status(201).json({
       ok: true,
       user: { id: userId, username: normalizedUsername, totpEnabled: false },
-      totp: { secret: totp.base32, otpauthUrl: totp.otpauth_url },
+      totp: { secret: totp.base32, otpauthUrl },
       recoveryCodes: plainCodes,
+      next: '/setup-authenticator.html',
       note: 'Simpan TOTP secret & recovery codes sekarang. Recovery codes cuma muncul sekali.',
     });
   } catch (err) {
@@ -127,6 +132,7 @@ router.get('/me', (req, res) => {
 
 router.get('/otp/setup', requireLogin, async (req, res) => {
   try {
+    const issuer = 'kuhyakuya';
     const db = getDb();
     const user = db
       .prepare('SELECT username, totp_secret, totp_enabled FROM users WHERE id=?')
@@ -137,14 +143,17 @@ router.get('/otp/setup', requireLogin, async (req, res) => {
     }
 
     if (!user.totp_secret) {
-      const secret = speakeasy.generateSecret({
-        name: `Kuhyakuya Account (${user.username})`,
-        length: 20,
+      const secret = speakeasy.generateSecret({ length: 20 });
+      const otpauthUrl = speakeasy.otpauthURL({
+        secret: secret.base32,
+        label: user.username,
+        issuer,
+        encoding: 'base32',
       });
 
       db.prepare('UPDATE users SET totp_secret=? WHERE id=?').run(secret.base32, req.session.userId);
 
-      const qrDataUrl = await QRCode.toDataURL(secret.otpauth_url, {
+      const qrDataUrl = await QRCode.toDataURL(otpauthUrl, {
         margin: 2,
         color: {
           dark: '#8A4EFF',
@@ -155,15 +164,15 @@ router.get('/otp/setup', requireLogin, async (req, res) => {
       return res.json({
         ok: true,
         secret: secret.base32,
-        otpauthUrl: secret.otpauth_url,
+        otpauthUrl,
         qrDataUrl,
       });
     }
 
     const otpauthUrl = speakeasy.otpauthURL({
       secret: user.totp_secret,
-      label: `Kuhyakuya Account (${user.username})`,
-      issuer: 'Kuhyakuya',
+      label: user.username,
+      issuer,
       encoding: 'base32',
     });
 

@@ -30,9 +30,17 @@ function bindRegisterForm() {
     const password = form.password.value;
 
     try {
-      await postJson('/api/register', { username, password });
-      if (msg) showMessage('msg', 'Register sukses! Lanjut setup authenticator...', 'success');
-      window.location.href = '/setup-authenticator.html';
+      const payload = await postJson('/api/register', { username, password });
+      const recoveryCodes = Array.isArray(payload.recoveryCodes) ? payload.recoveryCodes : [];
+      if (recoveryCodes.length) {
+        sessionStorage.setItem('recoveryCodes', JSON.stringify(recoveryCodes));
+      }
+
+      if (msg) {
+        showMessage('msg', 'Register sukses! Lanjut simpan recovery codes.', 'success');
+      }
+
+      window.location.href = '/recovery.html';
     } catch (err) {
       showMessage('msg', err.message || 'Gagal register', 'error');
     }

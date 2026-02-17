@@ -37,6 +37,7 @@
           </div>
 
           <button id="btnActivate" class="btn-accent" type="button">Activate</button>
+          <button id="btnContinue" class="secondary" type="button" style="display:none; margin-top: 10px;">Continue</button>
           <div id="msg" class="message inline-msg"></div>
         </div>
       </div>
@@ -76,6 +77,7 @@
       const digits = boxes.map((box) => box.querySelector('.otp-digit'));
       const btn = document.getElementById('btnActivate');
       const msg = document.getElementById('msg');
+      const continueBtn = document.getElementById('btnContinue');
       let value = '';
       let isAnimating = false;
 
@@ -187,6 +189,11 @@
         focusHidden();
       }
 
+
+      continueBtn.addEventListener('click', () => {
+        window.location.href = '/dashboard.html';
+      });
+
       btn.addEventListener('click', async () => {
         msg.textContent = '';
         msg.classList.remove('success', 'error');
@@ -216,11 +223,9 @@
             return;
           }
 
-          msg.textContent = 'Authenticator berhasil diaktifkan.';
+          msg.textContent = 'Authenticator berhasil diaktifkan. Lanjut kalau kamu sudah siap.';
           msg.classList.add('success');
-          setTimeout(() => {
-            window.location.href = '/dashboard.html';
-          }, 700);
+          continueBtn.style.display = 'inline-block';
         } catch (error) {
           msg.textContent = 'Server error.';
           msg.classList.add('error');
