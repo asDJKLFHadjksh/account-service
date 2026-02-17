@@ -5,7 +5,7 @@ const express = require('express');
 const session = require('express-session');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
-const { run, get, all } = require('./src/db');
+const { getDb, run, get, all } = require('./src/db');
 const {
   hashPassword,
   verifyPassword,
@@ -16,6 +16,7 @@ const {
 } = require('./src/security');
 const { canAttempt, registerFailure, clearAttempts } = require('./src/rateLimit');
 const authRoutes = require('./src/routes/auth');
+const tagsRouter = require('./src/routes/tags');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -52,11 +53,20 @@ app.use('/api', (req, res, next) => {
   next();
 });
 app.use('/api', authRoutes);
+app.use('/api/tags', requireApiLogin, tagsRouter(getDb()));
 
 const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
 
 function validateUsername(username) {
   return USERNAME_REGEX.test(username || '');
+}
+
+
+function requireApiLogin(req, res, next) {
+  if (!req.session?.userId) {
+    return res.status(401).json({ ok: false, error: 'Not logged in' });
+  }
+  return next();
 }
 
 function requireAuth(req, res, next) {
