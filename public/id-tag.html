@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ID Tag</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="k-shell" data-page-title="ID Tag" data-context-action="id-tag">
+    <button class="k-shell-backdrop" type="button" data-drawer-backdrop aria-label="Tutup menu"></button>
+
+    <aside class="k-shell-sidebar" data-shell-sidebar aria-label="Sidebar navigasi">
+      <nav class="k-shell-menu" aria-label="Navigasi utama">
+        <a href="/dashboard.html" class="k-shell-link" data-nav-link>
+          <img src="/assets/icons/dashboard.svg" alt="" width="18" height="18">
+          <span>Dashboard</span>
+        </a>
+        <a href="/id-tag.html" class="k-shell-link" data-nav-link>
+          <img src="/assets/icons/id-tag.svg" alt="" width="18" height="18">
+          <span>ID Tag</span>
+        </a>
+      </nav>
+
+      <div class="k-shell-bottom">
+        <a href="/settings.html" class="k-shell-link" data-nav-link>
+          <img src="/assets/icons/settings.svg" alt="" width="18" height="18">
+          <span>Settings</span>
+        </a>
+
+        <div class="k-profile-strip" aria-label="Profil pengguna">
+          <div class="k-profile-avatar" aria-hidden="true">U</div>
+          <span data-username>username</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="k-shell-main">
+      <header class="k-shell-topbar">
+        <button class="k-shell-toggle" type="button" data-drawer-toggle aria-label="Buka menu">
+          ☰
+        </button>
+        <h1 class="k-shell-page-title">ID Tag</h1>
+        <button class="k-shell-action" type="button" disabled title="Generator ID Tag segera hadir">
+          <img src="/assets/icons/plus.svg" alt="" width="16" height="16">
+          <span>+ ID Tag</span>
+        </button>
+      </header>
+
+      <section class="k-page-header" aria-label="Header ID Tag">
+        <h2>ID Tag</h2>
+        <p>Kelola daftar bandul ID Tag Anda dalam satu tampilan ringkas.</p>
+      </section>
+
+      <section class="k-table-wrap" aria-label="Daftar ID Tag">
+        <div class="k-table k-id-table">
+          <div class="k-row k-head">
+            <span>Nama</span>
+            <span>Code</span>
+            <span>Status</span>
+            <span>Switch</span>
+            <span>Edit</span>
+          </div>
+
+          <div class="k-row">
+            <span>Bandul Kucing A</span>
+            <span class="k-code-text">KT-2301-AX12</span>
+            <span class="k-pill is-active">Aktif</span>
+            <label class="k-switch" title="Belum tersedia">
+              <input type="checkbox" checked disabled>
+              <span class="k-switch-slider" aria-hidden="true"></span>
+            </label>
+            <button type="button" class="k-btn-mini" disabled>Edit</button>
+          </div>
+
+          <div class="k-row">
+            <span>Bandul Kucing B</span>
+            <span class="k-code-text">KT-2301-BX99</span>
+            <span class="k-pill is-inactive">Nonaktif</span>
+            <label class="k-switch" title="Belum tersedia">
+              <input type="checkbox" disabled>
+              <span class="k-switch-slider" aria-hidden="true"></span>
+            </label>
+            <button type="button" class="k-btn-mini" disabled>Edit</button>
+          </div>
+
+          <div class="k-row">
+            <span>Bandul Kucing C</span>
+            <span class="k-code-text">KT-2301-CX00</span>
+            <span class="k-pill is-pending">Belum siap</span>
+            <label class="k-switch" title="Belum tersedia">
+              <input type="checkbox" disabled>
+              <span class="k-switch-slider" aria-hidden="true"></span>
+            </label>
+            <button type="button" class="k-btn-mini" disabled>Edit</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app-shell.js"></script>
+</body>
+</html>

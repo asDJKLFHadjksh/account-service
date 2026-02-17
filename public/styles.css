@@ -713,3 +713,242 @@ button.secondary { background: transparent; border-color: var(--border); }
     gap: 8px;
   }
 }
+
+.k-shell {
+  min-height: 100vh;
+  display: flex;
+  background: #0b0b0f;
+}
+
+.k-shell-backdrop {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: rgba(5, 5, 9, 0.56);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 20;
+}
+
+.k-shell-backdrop.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.k-shell-sidebar {
+  width: 248px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 22px 16px;
+  display: flex;
+  flex-direction: column;
+  background: #0f1015;
+}
+
+.k-shell-menu {
+  display: grid;
+  gap: 6px;
+}
+
+.k-shell-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.8);
+  border-left: 2px solid transparent;
+  border-radius: 8px;
+  padding: 10px 10px 10px 12px;
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+
+.k-shell-link:hover {
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.k-shell-link.is-active {
+  border-left-color: #8A4EFF;
+  color: #fff;
+  background: rgba(138, 78, 255, 0.08);
+}
+
+.k-shell-bottom {
+  margin-top: auto;
+  display: grid;
+  gap: 12px;
+}
+
+.k-profile-strip {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.k-profile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(138, 78, 255, 0.5);
+  display: grid;
+  place-items: center;
+  font-size: 0.86rem;
+  color: #fff;
+}
+
+.k-shell-main {
+  flex: 1;
+  padding: 20px 26px 28px;
+}
+
+.k-shell-topbar {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.k-shell-page-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.k-shell-toggle {
+  display: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: #fff;
+  padding: 0;
+}
+
+.k-shell-action {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(138, 78, 255, 0.9);
+  background: transparent;
+  color: #fff;
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+
+.k-shell-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.k-page-header h2,
+.k-coming-card h2 {
+  margin: 0;
+}
+
+.k-page-header p,
+.k-coming-card p {
+  margin: 8px 0 0;
+}
+
+.k-coming-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 22px;
+  max-width: 780px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.k-table-wrap {
+  margin-top: 16px;
+  overflow-x: auto;
+}
+
+.k-id-table {
+  min-width: 780px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.k-id-table .k-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.2fr) minmax(150px, 1fr) 130px 110px 80px;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.k-id-table .k-row.k-head {
+  border-top: 0;
+  color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.8rem;
+}
+
+.k-code-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.k-pill {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 4px 10px;
+  font-size: 0.74rem;
+}
+
+.k-pill.is-active { color: #7dffb1; }
+.k-pill.is-inactive { color: #ff8f8f; }
+.k-pill.is-pending { color: #ffd08f; }
+
+.k-btn-mini {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+}
+
+.k-btn-mini:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.k-lock-scroll {
+  overflow: hidden;
+}
+
+@media (max-width: 940px) {
+  .k-shell-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .k-shell-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 30;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+  }
+
+  .k-shell-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .k-shell-main {
+    width: 100%;
+    padding: 16px;
+  }
+}
