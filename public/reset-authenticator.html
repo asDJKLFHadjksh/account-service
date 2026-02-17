@@ -1,32 +1,266 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Reset Authenticator</title><link rel="stylesheet" href="/styles.css"></head>
-<body><div class="container"><div class="panel"><h1>Reset authenticator</h1>
-<div id="stage1"><p>Enter username and a recovery code.</p><form id="startForm">
-<div class="form-row"><label>Username</label><input name="username" required></div>
-<div class="form-row"><label>Recovery code</label><input name="recoveryCode" placeholder="1234-5678" required></div>
-<button type="submit">Start reset</button></form></div>
-<div id="stage2" style="display:none"><p>Scan new QR, then verify OTP.</p><div class="card" id="qrWrap"></div><div class="card" id="manual"></div><form id="verifyForm"><div class="form-row"><label>OTP</label><input name="otp" required></div><button type="submit">Finish reset</button></form></div>
-<div id="stage3" style="display:none"><h2>New recovery codes</h2><div class="card code-grid" id="codes"></div><p><a href="/login">Return to login</a></p></div>
-<div id="msg" class="message"></div></div></div><script src="/common.js"></script><script>
-const params = new URLSearchParams(location.search);
-async function maybeLoadStep2(){
-  if(params.get('step')==='verify'){
-    document.getElementById('stage1').style.display='none';
-    document.getElementById('stage2').style.display='block';
-    const res=await fetch('/api/setup-authenticator');
-    const data=await res.json();
-    if(!res.ok) return showMessage('msg', data.error || 'Could not load QR','error');
-    document.getElementById('qrWrap').innerHTML=`<img src="${data.qrDataUrl}" alt="QR" style="width:200px;height:200px">`;
-    document.getElementById('manual').textContent=`Manual secret: ${data.manualKey}`;
-  }
-  if(params.get('done')==='1'){
-    document.getElementById('stage1').style.display='none';document.getElementById('stage2').style.display='none';document.getElementById('stage3').style.display='block';
-    const res=await fetch('/api/recovery-codes');const data=await res.json();
-    if(!res.ok) return showMessage('msg',data.error||'Could not load codes','error');
-    document.getElementById('codes').innerHTML=data.codes.map(c=>`<div>${c}</div>`).join('');
-  }
-}
-maybeLoadStep2();
-document.getElementById('startForm').addEventListener('submit',async(e)=>{e.preventDefault();const form=new FormData(e.target);try{const res=await postJson('/reset-authenticator',Object.fromEntries(form.entries()));location.href=res.redirectTo;}catch(err){showMessage('msg',err.message,'error');}});
-document.getElementById('verifyForm').addEventListener('submit',async(e)=>{e.preventDefault();const form=new FormData(e.target);try{const res=await postJson('/reset-authenticator/verify',Object.fromEntries(form.entries()));location.href=res.redirectTo;}catch(err){showMessage('msg',err.message,'error');}});
-</script></body></html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reset Authenticator</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .panel-reset {
+      max-width: 520px;
+      background: #0e0e11;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .panel-reset h1 {
+      margin-bottom: 10px;
+    }
+
+    .back-dashboard {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .back-dashboard:hover {
+      color: var(--fg);
+      text-decoration: none;
+    }
+
+    .recovery-wrap {
+      margin: 10px 0 14px;
+    }
+
+    .recovery-wrap .otp-box {
+      cursor: text;
+    }
+
+    .recovery-wrap .otp-box.is-active {
+      border-color: #8A4EFF;
+      box-shadow: none;
+    }
+
+    .otp-input-hidden {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      width: 1px;
+      height: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="panel panel-reset card-accent">
+      <a class="back-dashboard" href="/dashboard">← Kembali ke dashboard</a>
+      <h1>Reset authenticator</h1>
+
+      <div id="stage1">
+        <p>Masukkan username dan kode recovery untuk memulai reset authenticator.</p>
+        <form id="startForm">
+          <div class="form-row">
+            <label for="username">Username</label>
+            <input id="username" name="username" required>
+          </div>
+
+          <div class="form-row recovery-wrap">
+            <label>Kode recovery</label>
+            <input id="recoveryCode" name="recoveryCode" class="otp-input-hidden" inputmode="numeric" autocomplete="one-time-code" required>
+            <div id="recoveryBoxes" class="otp-boxes" role="group" aria-label="Input kode recovery 8 digit">
+              <div class="otp-box" data-i="0"><span class="otp-digit"></span></div>
+              <div class="otp-box" data-i="1"><span class="otp-digit"></span></div>
+              <div class="otp-box" data-i="2"><span class="otp-digit"></span></div>
+              <div class="otp-box" data-i="3"><span class="otp-digit"></span></div>
+              <div class="otp-split" aria-hidden="true"></div>
+              <div class="otp-box" data-i="4"><span class="otp-digit"></span></div>
+              <div class="otp-box" data-i="5"><span class="otp-digit"></span></div>
+              <div class="otp-box" data-i="6"><span class="otp-digit"></span></div>
+              <div class="otp-box" data-i="7"><span class="otp-digit"></span></div>
+            </div>
+          </div>
+
+          <button class="btn-accent" type="submit">Mulai reset</button>
+        </form>
+      </div>
+
+      <div id="stage2" style="display:none">
+        <p>Scan QR baru, lalu verifikasi OTP.</p>
+        <div class="card" id="qrWrap"></div>
+        <div class="card" id="manual"></div>
+        <form id="verifyForm">
+          <div class="form-row"><label>OTP</label><input name="otp" required></div>
+          <button type="submit">Selesaikan reset</button>
+        </form>
+      </div>
+
+      <div id="stage3" style="display:none">
+        <h2>Kode recovery baru</h2>
+        <div class="card code-grid" id="codes"></div>
+      </div>
+
+      <div id="msg" class="message"></div>
+    </div>
+  </div>
+
+  <script src="/common.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+
+    async function maybeLoadStep2() {
+      if (params.get('step') === 'verify') {
+        document.getElementById('stage1').style.display = 'none';
+        document.getElementById('stage2').style.display = 'block';
+        const res = await fetch('/api/setup-authenticator');
+        const data = await res.json();
+        if (!res.ok) return showMessage('msg', data.error || 'QR gagal dimuat', 'error');
+        document.getElementById('qrWrap').innerHTML = `<img src="${data.qrDataUrl}" alt="QR" style="width:200px;height:200px">`;
+        document.getElementById('manual').textContent = `Manual secret: ${data.manualKey}`;
+      }
+      if (params.get('done') === '1') {
+        document.getElementById('stage1').style.display = 'none';
+        document.getElementById('stage2').style.display = 'none';
+        document.getElementById('stage3').style.display = 'block';
+        const res = await fetch('/api/recovery-codes');
+        const data = await res.json();
+        if (!res.ok) return showMessage('msg', data.error || 'Kode recovery gagal dimuat', 'error');
+        document.getElementById('codes').innerHTML = data.codes.map((c) => `<div>${c}</div>`).join('');
+      }
+    }
+
+    maybeLoadStep2();
+
+    (function initRecoveryInput() {
+      const hidden = document.getElementById('recoveryCode');
+      const boxesWrap = document.getElementById('recoveryBoxes');
+      if (!hidden || !boxesWrap) return;
+
+      const boxes = Array.from(boxesWrap.querySelectorAll('.otp-box'));
+      const digits = boxes.map((box) => box.querySelector('.otp-digit'));
+      let value = '';
+
+      const focusHidden = () => hidden.focus({ preventScroll: true });
+
+      function render(prev = '') {
+        for (let i = 0; i < 8; i += 1) {
+          const char = value[i] || '';
+          const had = prev[i] || '';
+
+          if (had && !char) {
+            digits[i].classList.add('fade-out');
+            setTimeout(() => {
+              digits[i].textContent = '';
+              digits[i].classList.remove('fade-out');
+            }, 140);
+          }
+
+          if (char && char !== had) {
+            digits[i].textContent = char;
+          }
+
+          boxes[i].classList.toggle('is-filled', Boolean(char));
+          boxes[i].classList.toggle('is-active', i === value.length && value.length < 8);
+
+          if (!char && !had) {
+            digits[i].textContent = '';
+          }
+        }
+      }
+
+      function setValue(next) {
+        const prev = value;
+        value = next.slice(0, 8);
+        hidden.value = value;
+        render(prev);
+      }
+
+      boxesWrap.addEventListener('click', focusHidden);
+      hidden.addEventListener('focus', () => render(value));
+      window.addEventListener('load', focusHidden);
+
+      hidden.addEventListener('input', () => {
+        const cleaned = (hidden.value || '').replace(/\D/g, '').slice(0, 8);
+        setValue(cleaned);
+      });
+
+      hidden.addEventListener('keydown', (event) => {
+        if (event.key === 'Backspace') {
+          event.preventDefault();
+          if (value.length > 0) {
+            setValue(value.slice(0, -1));
+          }
+          return;
+        }
+
+        if (/^[0-9]$/.test(event.key)) {
+          event.preventDefault();
+          if (value.length < 8) {
+            setValue(value + event.key);
+          }
+          return;
+        }
+
+        if (event.key === 'Enter') return;
+
+        if (event.key.length === 1) {
+          event.preventDefault();
+        }
+      });
+
+      hidden.addEventListener('paste', (event) => {
+        event.preventDefault();
+        const pasted = (event.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 8);
+        setValue(pasted);
+      });
+
+      render();
+    })();
+
+    document.getElementById('startForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const hidden = document.getElementById('recoveryCode');
+      const boxes = Array.from(document.querySelectorAll('#recoveryBoxes .otp-box'));
+      const value = (hidden.value || '').replace(/\D/g, '').slice(0, 8);
+      hidden.value = value;
+
+      if (value.length < 8) {
+        showMessage('msg', 'Kode recovery harus 8 digit.', 'error');
+        boxes.forEach((box) => {
+          box.classList.remove('missing-out');
+          box.classList.add('missing-in');
+        });
+        setTimeout(() => {
+          boxes.forEach((box) => {
+            box.classList.remove('missing-in');
+            box.classList.add('missing-out');
+          });
+        }, 220);
+        setTimeout(() => boxes.forEach((box) => box.classList.remove('missing-out')), 580);
+        return;
+      }
+
+      const form = new FormData(e.target);
+      try {
+        const res = await postJson('/reset-authenticator', Object.fromEntries(form.entries()));
+        location.href = res.redirectTo;
+      } catch (err) {
+        showMessage('msg', err.message, 'error');
+      }
+    });
+
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = new FormData(e.target);
+      try {
+        const res = await postJson('/reset-authenticator/verify', Object.fromEntries(form.entries()));
+        location.href = res.redirectTo;
+      } catch (err) {
+        showMessage('msg', err.message, 'error');
+      }
+    });
+  </script>
+</body>
+</html>
