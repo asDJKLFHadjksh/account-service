@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Save recovery codes</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="panel panel-kuhya card-accent">
+      <h1>Save your recovery codes</h1>
+      <p class="notice">Simpan sekarang. Kode ini cuma muncul sekali dan tiap kode hanya bisa dipakai 1x.</p>
+
+      <div class="card code-grid" id="codes"></div>
+
+      <div style="display:flex; gap:10px; margin-top:12px;">
+        <button type="button" id="copyBtn" class="secondary">Copy</button>
+        <button type="button" id="downloadBtn" class="secondary">Download .txt</button>
+      </div>
+
+      <label style="display:flex; gap:10px; align-items:flex-start; margin-top:16px; color: var(--text);">
+        <input id="savedCheck" type="checkbox" style="width:auto; margin-top:2px;">
+        <span>I have saved these codes</span>
+      </label>
+
+      <button type="button" id="continueBtn" class="btn-accent" disabled style="margin-top:12px; opacity:.65; cursor:not-allowed;">Continue</button>
+      <div id="msg" class="message"></div>
+    </div>
+  </div>
+
+  <script src="/common.js"></script>
+  <script>
+    (() => {
+      const raw = sessionStorage.getItem('recoveryCodes');
+      if (!raw) {
+        window.location.href = '/register.html';
+        return;
+      }
+
+      let codes = [];
+      try {
+        codes = JSON.parse(raw);
+      } catch (_) {
+        sessionStorage.removeItem('recoveryCodes');
+        window.location.href = '/register.html';
+        return;
+      }
+
+      if (!Array.isArray(codes) || !codes.length) {
+        sessionStorage.removeItem('recoveryCodes');
+        window.location.href = '/register.html';
+        return;
+      }
+
+      const codesEl = document.getElementById('codes');
+      const check = document.getElementById('savedCheck');
+      const continueBtn = document.getElementById('continueBtn');
+
+      codesEl.innerHTML = codes.map((code) => `<code>${code}</code>`).join('');
+
+      document.getElementById('copyBtn').addEventListener('click', async () => {
+        await navigator.clipboard.writeText(codes.join('\n'));
+        showMessage('msg', 'Recovery codes copied.', 'success');
+      });
+
+      document.getElementById('downloadBtn').addEventListener('click', () => {
+        const blob = new Blob([codes.join('\n')], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'recovery-codes.txt';
+        a.click();
+      });
+
+      check.addEventListener('change', () => {
+        const enabled = check.checked;
+        continueBtn.disabled = !enabled;
+        continueBtn.style.opacity = enabled ? '1' : '.65';
+        continueBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+      });
+
+      continueBtn.addEventListener('click', () => {
+        sessionStorage.removeItem('recoveryCodes');
+        window.location.href = '/setup-authenticator.html';
+      });
+    })();
+  </script>
+</body>
+</html>
