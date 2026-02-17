@@ -1,78 +1,257 @@
 <!doctype html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Setup Authenticator</title><link rel="stylesheet" href="/styles.css"></head>
-<body><div class="container"><div class="panel panel-elevated"><h1>Setup Authenticator</h1><p class="setup-intro">Aktifkan 2FA dalam 3 langkah cepat untuk keamanan akun yang lebih baik.</p><div id="setupBox" class="setup-flow"><section class="step-card"><p class="step-label">Step 1</p><h2>Scan QR</h2><p class="step-hint">Buka aplikasi authenticator lalu scan QR berikut.</p><div class="qr-box" id="qrWrap"></div></section><div class="step-divider">OR</div><section class="step-card"><p class="step-label">Step 2</p><h2>Copy Manual Key</h2><p class="step-hint">Gunakan ini jika kamu tidak bisa scan QR.</p><div class="secret-box"><span id="manualSecret"></span><button type="button" id="copySecretBtn" class="secondary">Copy</button></div><p class="warning-note">⚠️ Simpan manual key ini. Tidak akan ditampilkan lagi.</p></section>
-<section class="step-card"><p class="step-label">Step 3</p><h2>Enter OTP</h2><p class="step-hint">Masukkan 6 digit kode dari aplikasi authenticator.</p><form id="otpForm"><div class="form-row"><label for="otpInput0">OTP code</label><div class="otp-segmented" role="group" aria-label="OTP code"><input id="otpInput0" class="otp-digit" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="[0-9]*"><input class="otp-digit" inputmode="numeric" maxlength="1" pattern="[0-9]*"><input class="otp-digit" inputmode="numeric" maxlength="1" pattern="[0-9]*"><input class="otp-digit" inputmode="numeric" maxlength="1" pattern="[0-9]*"><input class="otp-digit" inputmode="numeric" maxlength="1" pattern="[0-9]*"><input class="otp-digit" inputmode="numeric" maxlength="1" pattern="[0-9]*"></div><input type="hidden" name="otp" id="otpHidden" required></div><button type="submit">Verify & activate</button></form></section></div>
-<div id="codesBox" style="display:none"><h2>Recovery codes</h2><p class="notice">Save these once. Each code can be used one time.</p><div class="card code-grid" id="codes"></div><button id="copyBtn" class="secondary">Copy codes</button> <button id="downloadBtn" class="secondary">Download .txt</button><p><a href="/dashboard">Continue to dashboard</a></p></div>
-<div id="msg" class="message"></div></div></div>
-<script src="/common.js"></script>
-<script>
-async function loadSetup(){
-  try {
-    const res = await fetch('/api/otp/setup', { credentials: 'include' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to load setup data');
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Setup Authenticator</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="panel panel-kuhya card-accent">
+      <h1>Setup Authenticator</h1>
+      <p class="setup-intro">Scan QR dengan aplikasi authenticator, atau pakai manual key jika diperlukan.</p>
 
-    const qrSrc = `https://quickchart.io/qr?size=220&text=${encodeURIComponent(data.otpauthUrl)}`;
-    document.getElementById('qrWrap').innerHTML = `<img src="${qrSrc}" alt="Authenticator QR">`;
-    document.getElementById('manualSecret').textContent = data.secret;
-    window._manualSecret = data.secret;
-  } catch(err){ showMessage('msg', err.message, 'error'); }
-}
+      <div class="card setup-card">
+        <div class="kuhya-flow" id="setupBox">
+          <div class="qr-hero" id="qrWrap"></div>
 
-function syncOtpFromDigits() {
-  const digits = Array.from(document.querySelectorAll('.otp-digit')).map((input) => input.value).join('');
-  document.getElementById('otpHidden').value = digits;
-}
+          <div class="manual-key-row">
+            <p class="manual-key-label">Manual key (fallback)</p>
+            <button type="button" id="copySecretBtn" class="secondary manual-copy-btn">Copy</button>
+          </div>
+          <code id="manualSecret" class="manual-key-value"></code>
 
-document.querySelectorAll('.otp-digit').forEach((input, index, inputs) => {
-  input.addEventListener('input', () => {
-    input.value = input.value.replace(/\D/g, '').slice(0, 1);
-    if (input.value && index < inputs.length - 1) {
-      inputs[index + 1].focus();
+          <div class="otp-wrap">
+            <div class="otp-label">Enter 6-digit code</div>
+            <input id="otpHidden" class="otp-hidden" inputmode="numeric" autocomplete="one-time-code" aria-label="OTP hidden input">
+            <div id="otpBoxes" class="otp-boxes" role="group" aria-label="OTP input">
+              <div class="otp-box" data-i="0"><span class="otp-digit"></span></div>
+              <div class="otp-box" data-i="1"><span class="otp-digit"></span></div>
+              <div class="otp-box" data-i="2"><span class="otp-digit"></span></div>
+              <div class="otp-split" aria-hidden="true"></div>
+              <div class="otp-box" data-i="3"><span class="otp-digit"></span></div>
+              <div class="otp-box" data-i="4"><span class="otp-digit"></span></div>
+              <div class="otp-box" data-i="5"><span class="otp-digit"></span></div>
+            </div>
+          </div>
+
+          <button id="btnActivate" class="btn-accent" type="button">Activate</button>
+          <div id="msg" class="message inline-msg"></div>
+        </div>
+      </div>
+
+      <div id="codesBox" style="display:none">
+        <h2>Recovery codes</h2>
+        <p class="notice">Save these once. Each code can be used one time.</p>
+        <div class="card code-grid" id="codes"></div>
+        <button id="copyBtn" class="secondary">Copy codes</button>
+        <button id="downloadBtn" class="secondary">Download .txt</button>
+        <p><a href="/dashboard">Continue to dashboard</a></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/common.js"></script>
+  <script>
+    async function loadSetup() {
+      try {
+        const res = await fetch('/api/otp/setup', { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load setup data');
+
+        document.getElementById('qrWrap').innerHTML = `<img src="${data.qrDataUrl}" alt="Authenticator QR">`;
+        document.getElementById('manualSecret').textContent = data.secret;
+        window._manualSecret = data.secret;
+      } catch (err) {
+        showMessage('msg', err.message, 'error');
+      }
     }
-    syncOtpFromDigits();
-  });
 
-  input.addEventListener('keydown', (event) => {
-    if (event.key === 'Backspace' && !input.value && index > 0) {
-      inputs[index - 1].focus();
-    }
-  });
+    (() => {
+      const hidden = document.getElementById('otpHidden');
+      const boxesWrap = document.getElementById('otpBoxes');
+      const boxes = Array.from(boxesWrap.querySelectorAll('.otp-box'));
+      const digits = boxes.map((box) => box.querySelector('.otp-digit'));
+      const btn = document.getElementById('btnActivate');
+      const msg = document.getElementById('msg');
+      let value = '';
+      let isAnimating = false;
 
-  input.addEventListener('paste', (event) => {
-    event.preventDefault();
-    const pasted = (event.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
-    pasted.split('').forEach((digit, idx) => {
-      if (inputs[idx]) inputs[idx].value = digit;
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const focusHidden = () => hidden.focus({ preventScroll: true });
+
+      boxesWrap.addEventListener('click', focusHidden);
+      window.addEventListener('load', focusHidden);
+
+      document.addEventListener('keydown', (event) => {
+        if (isAnimating) return;
+        const isDigit = /^[0-9]$/.test(event.key);
+        if (!isDigit && event.key !== 'Backspace' && event.key !== 'Enter') return;
+        focusHidden();
+      });
+
+      function render(prev = '') {
+        for (let i = 0; i < 6; i += 1) {
+          const char = value[i] || '';
+          const had = prev[i] || '';
+
+          if (had && !char) {
+            digits[i].classList.add('fade-out');
+            setTimeout(() => {
+              digits[i].textContent = '';
+              digits[i].classList.remove('fade-out');
+            }, 140);
+          }
+
+          if (char && char !== had) {
+            digits[i].textContent = char;
+          }
+
+          boxes[i].classList.toggle('is-filled', Boolean(char));
+          if (!char && !had) {
+            digits[i].textContent = '';
+          }
+        }
+      }
+
+      function setValue(next) {
+        const prev = value;
+        value = next.slice(0, 6);
+        hidden.value = value;
+        render(prev);
+      }
+
+      hidden.addEventListener('input', () => {
+        if (isAnimating) return;
+        const cleaned = (hidden.value || '').replace(/\D/g, '').slice(0, 6);
+        setValue(cleaned);
+      });
+
+      hidden.addEventListener('keydown', (event) => {
+        if (isAnimating) return;
+
+        if (event.key === 'Backspace') {
+          event.preventDefault();
+          if (value.length > 0) {
+            setValue(value.slice(0, -1));
+          }
+        }
+
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          btn.click();
+        }
+      });
+
+      async function missingBlink() {
+        const start = value.length;
+        for (let i = start; i < 6; i += 1) {
+          boxes[i].classList.remove('missing-out');
+          boxes[i].classList.add('missing-in');
+          await sleep(85);
+        }
+        await sleep(1000);
+        for (let i = start; i < 6; i += 1) {
+          boxes[i].classList.remove('missing-in');
+          boxes[i].classList.add('missing-out');
+        }
+        setTimeout(() => {
+          for (let i = start; i < 6; i += 1) {
+            boxes[i].classList.remove('missing-out');
+          }
+        }, 420);
+      }
+
+      async function wrongCodeWipe() {
+        isAnimating = true;
+        boxes.forEach((box) => box.classList.add('is-danger'));
+        await sleep(120);
+
+        for (let i = 5; i >= 0; i -= 1) {
+          if (value[i]) {
+            digits[i].classList.add('fade-out');
+            await sleep(85);
+            digits[i].textContent = '';
+            digits[i].classList.remove('fade-out');
+            boxes[i].classList.remove('is-filled');
+          }
+        }
+
+        value = '';
+        hidden.value = '';
+        await sleep(220);
+        boxes.forEach((box) => box.classList.remove('is-danger'));
+        isAnimating = false;
+        focusHidden();
+      }
+
+      btn.addEventListener('click', async () => {
+        msg.textContent = '';
+        msg.classList.remove('success', 'error');
+
+        if (value.length < 6) {
+          msg.textContent = 'Masukkan 6 digit dulu ya.';
+          await missingBlink();
+          return;
+        }
+
+        btn.disabled = true;
+        btn.style.filter = 'brightness(.95)';
+
+        try {
+          const response = await fetch('/api/otp/enable', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ token: value })
+          });
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok || !data.ok) {
+            msg.textContent = data.error || 'OTP salah.';
+            msg.classList.add('error');
+            await wrongCodeWipe();
+            return;
+          }
+
+          msg.textContent = 'Authenticator berhasil diaktifkan.';
+          msg.classList.add('success');
+          setTimeout(() => {
+            window.location.href = '/dashboard.html';
+          }, 700);
+        } catch (error) {
+          msg.textContent = 'Server error.';
+          msg.classList.add('error');
+        } finally {
+          btn.disabled = false;
+          btn.style.filter = '';
+        }
+      });
+    })();
+
+    document.getElementById('copySecretBtn').addEventListener('click', async () => {
+      if (!window._manualSecret) return;
+      await navigator.clipboard.writeText(window._manualSecret);
+      showMessage('msg', 'Manual key copied to clipboard.', 'success');
     });
-    const focusIndex = Math.min(pasted.length, inputs.length - 1);
-    inputs[focusIndex].focus();
-    syncOtpFromDigits();
-  });
-});
 
-document.getElementById('copySecretBtn').addEventListener('click', async () => {
-  if (!window._manualSecret) return;
-  await navigator.clipboard.writeText(window._manualSecret);
-  showMessage('msg', 'Manual key copied to clipboard.', 'success');
-});
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      if (!window._codes) return;
+      await navigator.clipboard.writeText(window._codes.join('\n'));
+      showMessage('msg', 'Copied to clipboard.', 'success');
+    });
 
-document.getElementById('otpForm').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  syncOtpFromDigits();
-  const form = new FormData(e.target);
-  const token = String(form.get('otp') || '').trim();
-  try {
-    const res = await postJson('/api/otp/enable', { token });
-    if (res.ok) {
-      showMessage('msg', 'Authenticator berhasil diaktifkan.', 'success');
-      setTimeout(() => { location.href = '/dashboard.html'; }, 800);
-    }
-  } catch(err){ showMessage('msg', err.message, 'error'); }
-});
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      if (!window._codes) return;
+      const blob = new Blob([window._codes.join('\n')], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'recovery-codes.txt';
+      a.click();
+    });
 
-document.getElementById('copyBtn').addEventListener('click', async ()=>{ if(!window._codes) return; await navigator.clipboard.writeText(window._codes.join('\n')); showMessage('msg','Copied to clipboard.','success');});
-document.getElementById('downloadBtn').addEventListener('click', ()=>{if(!window._codes) return;const blob=new Blob([window._codes.join('\n')],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='recovery-codes.txt';a.click();});
-loadSetup();
-</script></body></html>
+    loadSetup();
+  </script>
+</body>
+</html>

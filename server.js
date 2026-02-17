@@ -141,7 +141,13 @@ app.get('/api/setup-authenticator', async (req, res) => {
       issuer: 'kuhyakuya.com',
       encoding: 'base32',
     });
-    const qrDataUrl = await QRCode.toDataURL(otpauthUrl);
+    const qrDataUrl = await QRCode.toDataURL(otpauthUrl, {
+      margin: 2,
+      color: {
+        dark: "#8A4EFF",
+        light: "#00000000",
+      },
+    });
     res.json({ qrDataUrl, manualKey: secret, username: user.username, resetMode: Boolean(req.session.resetAuth) });
   } catch (error) {
     res.status(500).json({ error: 'Failed to load authenticator data.' });
