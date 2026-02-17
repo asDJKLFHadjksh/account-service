@@ -419,6 +419,24 @@ button.secondary { background: transparent; border-color: var(--border); }
   outline: none;
 }
 
+.k-pw-toggle {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #8A4EFF;
+  border-radius: 2px;
+  background: transparent;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.k-pw-toggle:hover,
+.k-pw-toggle:focus-visible {
+  background: transparent;
+}
+
+.k-pw-toggle.is-on {
+  background: #8A4EFF;
+}
+
 .k-btn {
   border-radius: 10px;
   padding: 10px 14px;

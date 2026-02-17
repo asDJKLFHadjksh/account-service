@@ -100,11 +100,7 @@ function bindPasswordToggles() {
         'aria-label',
         isHidden ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi',
       );
-
-      const icon = toggle.querySelector('[data-eye-icon]');
-      if (icon) {
-        icon.textContent = isHidden ? '🙈' : '👁';
-      }
+      toggle.classList.toggle('is-on', isHidden);
     });
   });
 }
