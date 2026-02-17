@@ -1,8 +1,8 @@
 <!doctype html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Setup Authenticator</title><link rel="stylesheet" href="/styles.css"></head>
-<body><div class="container"><div class="panel"><h1>Setup Authenticator</h1><div id="setupBox"><p>Scan the QR code or use manual key.</p><div class="card" id="qrWrap"></div><div class="card" id="manual"></div>
-<form id="otpForm"><div class="form-row"><label>OTP code</label><input name="otp" required></div><button type="submit">Verify & activate</button></form></div>
+<body><div class="container"><div class="panel panel-elevated"><h1>Setup Authenticator</h1><p class="setup-intro">Aktifkan 2FA dalam 3 langkah cepat untuk keamanan akun yang lebih baik.</p><div id="setupBox" class="setup-flow"><section class="step-card"><p class="step-label">Step 1</p><h2>Scan QR</h2><p class="step-hint">Buka aplikasi authenticator lalu scan QR berikut.</p><div class="qr-box" id="qrWrap"></div></section><div class="step-divider">OR</div><section class="step-card"><p class="step-label">Step 2</p><h2>Copy Manual Key</h2><p class="step-hint">Gunakan ini jika kamu tidak bisa scan QR.</p><div class="secret-box"><span id="manualSecret"></span><button type="button" id="copySecretBtn" class="secondary">Copy</button></div><p class="warning-note">⚠️ Simpan manual key ini. Tidak akan ditampilkan lagi.</p></section>
+<section class="step-card"><p class="step-label">Step 3</p><h2>Enter OTP</h2><p class="step-hint">Masukkan 6 digit kode dari aplikasi authenticator.</p><form id="otpForm"><div class="form-row"><label for="otpInput0">OTP code</label><div class="otp-segmented" role="group" aria-label="OTP code"><input id="otpInput0" class="otp-digit" inputmode="numeric" autocomplete="one-time-code" maxlength="1" pattern="[0-9]*"><input class="otp-digit" inputmode="numeric" maxlength="1" pattern="[0-9]*"><input class="otp-digit" inputmode="numeric" maxlength="1" pattern="[0-9]*"><input class="otp-digit" inputmode="numeric" maxlength="1" pattern="[0-9]*"><input class="otp-digit" inputmode="numeric" maxlength="1" pattern="[0-9]*"><input class="otp-digit" inputmode="numeric" maxlength="1" pattern="[0-9]*"></div><input type="hidden" name="otp" id="otpHidden" required></div><button type="submit">Verify & activate</button></form></section></div>
 <div id="codesBox" style="display:none"><h2>Recovery codes</h2><p class="notice">Save these once. Each code can be used one time.</p><div class="card code-grid" id="codes"></div><button id="copyBtn" class="secondary">Copy codes</button> <button id="downloadBtn" class="secondary">Download .txt</button><p><a href="/dashboard">Continue to dashboard</a></p></div>
 <div id="msg" class="message"></div></div></div>
 <script src="/common.js"></script>
@@ -14,13 +14,53 @@ async function loadSetup(){
     if (!res.ok) throw new Error(data.error || 'Failed to load setup data');
 
     const qrSrc = `https://quickchart.io/qr?size=220&text=${encodeURIComponent(data.otpauthUrl)}`;
-    document.getElementById('qrWrap').innerHTML = `<img src="${qrSrc}" alt="Authenticator QR" style="width:200px;height:200px">`;
-    document.getElementById('manual').textContent = `Manual secret: ${data.secret}`;
+    document.getElementById('qrWrap').innerHTML = `<img src="${qrSrc}" alt="Authenticator QR">`;
+    document.getElementById('manualSecret').textContent = data.secret;
+    window._manualSecret = data.secret;
   } catch(err){ showMessage('msg', err.message, 'error'); }
 }
 
+function syncOtpFromDigits() {
+  const digits = Array.from(document.querySelectorAll('.otp-digit')).map((input) => input.value).join('');
+  document.getElementById('otpHidden').value = digits;
+}
+
+document.querySelectorAll('.otp-digit').forEach((input, index, inputs) => {
+  input.addEventListener('input', () => {
+    input.value = input.value.replace(/\D/g, '').slice(0, 1);
+    if (input.value && index < inputs.length - 1) {
+      inputs[index + 1].focus();
+    }
+    syncOtpFromDigits();
+  });
+
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Backspace' && !input.value && index > 0) {
+      inputs[index - 1].focus();
+    }
+  });
+
+  input.addEventListener('paste', (event) => {
+    event.preventDefault();
+    const pasted = (event.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+    pasted.split('').forEach((digit, idx) => {
+      if (inputs[idx]) inputs[idx].value = digit;
+    });
+    const focusIndex = Math.min(pasted.length, inputs.length - 1);
+    inputs[focusIndex].focus();
+    syncOtpFromDigits();
+  });
+});
+
+document.getElementById('copySecretBtn').addEventListener('click', async () => {
+  if (!window._manualSecret) return;
+  await navigator.clipboard.writeText(window._manualSecret);
+  showMessage('msg', 'Manual key copied to clipboard.', 'success');
+});
+
 document.getElementById('otpForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
+  syncOtpFromDigits();
   const form = new FormData(e.target);
   const token = String(form.get('otp') || '').trim();
   try {
