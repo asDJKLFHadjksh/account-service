@@ -31,7 +31,12 @@ function bindRegisterForm() {
 
     try {
       const payload = await postJson('/api/register', { username, password });
-      const recoveryCodes = Array.isArray(payload.recoveryCodes) ? payload.recoveryCodes : [];
+      const recoveryCodes = Array.isArray(payload.recoveryCodes)
+        ? payload.recoveryCodes
+            .map((code) => String(code || '').replace(/-/g, '').trim())
+            .filter(Boolean)
+            .slice(0, 10)
+        : [];
       if (recoveryCodes.length) {
         sessionStorage.setItem('recoveryCodes', JSON.stringify(recoveryCodes));
       }
