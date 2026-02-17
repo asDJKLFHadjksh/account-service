@@ -71,3 +71,110 @@ button.secondary { background: transparent; border-color: var(--border); }
 
 .code-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .topbar { display:flex; justify-content: space-between; align-items:center; margin-bottom: 18px; }
+
+
+.panel-elevated {
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.setup-intro {
+  margin-top: -4px;
+  margin-bottom: 18px;
+}
+
+.setup-flow {
+  display: grid;
+  gap: 14px;
+}
+
+.step-card {
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.step-label {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(138, 78, 255, 0.18);
+  color: #cdb4ff;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.step-card h2 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.step-hint {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.step-divider {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+}
+
+.qr-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  background: #101010;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.qr-box img {
+  width: 220px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.secret-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #0f0f0f;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+#manualSecret {
+  overflow-wrap: anywhere;
+  color: #f0e9ff;
+}
+
+.warning-note {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: #ffc98a;
+}
+
+.otp-segmented {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.otp-digit {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 10px 0;
+}
