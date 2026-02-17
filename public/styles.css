@@ -292,11 +292,11 @@ button.secondary { background: transparent; border-color: var(--border); }
 .k-check {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
   user-select: none;
-  color: rgba(255, 255, 255, 0.78);
   font-size: 13px;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .k-check input {
@@ -310,45 +310,21 @@ button.secondary { background: transparent; border-color: var(--border); }
 .k-box {
   width: 16px;
   height: 16px;
-  border-radius: 4px;
-  transform: rotate(45deg);
   border: 1px solid rgba(138, 78, 255, 0.65);
   background: transparent;
-  display: inline-block;
-  box-shadow: 0 0 0 1px rgba(138, 78, 255, 0.1);
-  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
-  position: relative;
-}
-
-.k-box::after {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  border-radius: 2px;
-  opacity: 0;
-  transform: rotate(-45deg) scale(0.9);
-  transition: opacity 0.15s ease, transform 0.15s ease;
-  border-right: 2px solid rgba(255, 255, 255, 0.95);
-  border-bottom: 2px solid rgba(255, 255, 255, 0.95);
-  width: 5px;
-  height: 9px;
-  left: 5px;
-  top: 2px;
+  transform: rotate(45deg);
+  border-radius: 3px;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .k-check input:checked + .k-box {
   background: #8A4EFF;
   border-color: rgba(138, 78, 255, 0.95);
-  box-shadow: 0 0 0 3px rgba(138, 78, 255, 0.16);
-}
-
-.k-check input:checked + .k-box::after {
-  opacity: 1;
-  transform: rotate(-45deg) scale(1);
+  box-shadow: 0 0 0 2px rgba(138, 78, 255, 0.16);
 }
 
 .k-check input:focus-visible + .k-box {
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1), 0 0 0 6px rgba(138, 78, 255, 0.14);
+  box-shadow: 0 0 0 3px rgba(138, 78, 255, 0.18);
 }
 
 .k-check:hover .k-box {
