@@ -895,6 +895,13 @@ button.secondary { background: transparent; border-color: var(--border); }
   color: rgba(255, 255, 255, 0.88);
 }
 
+.k-cell-center {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 .k-pill {
   display: inline-flex;
   width: fit-content;
@@ -909,17 +916,27 @@ button.secondary { background: transparent; border-color: var(--border); }
 .k-pill.is-pending { color: #ffd08f; }
 
 .k-btn-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: transparent;
   color: rgba(255, 255, 255, 0.9);
   border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.75rem;
+  padding: 0;
+  box-shadow: none;
 }
 
 .k-btn-mini:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.k-btn-mini img {
+  display: block;
+  opacity: 0.9;
 }
 
 .k-lock-scroll {
