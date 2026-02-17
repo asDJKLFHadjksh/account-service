@@ -1,28 +1,60 @@
 <!doctype html>
-<html>
+<html lang="id">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Register</title>
+  <title>Buat akun</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div class="container">
-    <div class="panel">
-      <h1>Create account</h1>
-      <p>Username: lowercase letters, numbers, underscore. 3-20 chars.</p>
-      <form id="registerForm">
-        <div class="form-row"><label>Username</label><input name="username" required></div>
-        <div class="form-row"><label>Password</label><input name="password" type="password" minlength="6" required></div>
-        <button type="submit">Register</button>
+    <section class="panel k-auth-card" aria-labelledby="registerTitle">
+      <header class="k-auth-header">
+        <h1 id="registerTitle" class="k-auth-title">Buat akun</h1>
+        <p class="k-auth-subtitle">Masukkan data di bawah untuk membuat akun.</p>
+      </header>
+
+      <form id="registerForm" class="k-auth-form" novalidate>
+        <div class="form-row">
+          <label for="username">Username</label>
+          <p class="k-helper-text">huruf kecil, angka, underscore. 3–20 karakter.</p>
+          <input id="username" class="k-input" name="username" minlength="3" maxlength="20" autocomplete="username" required>
+        </div>
+
+        <div class="form-row">
+          <div class="k-label-row">
+            <label for="password">Kata sandi</label>
+          </div>
+          <div class="k-password-wrap">
+            <input id="password" class="k-input k-input-password" name="password" type="password" minlength="6" autocomplete="new-password" required>
+            <button
+              type="button"
+              class="k-password-toggle"
+              data-password-toggle
+              data-target="password"
+              aria-label="Tampilkan kata sandi"
+            >
+              <span aria-hidden="true" data-eye-icon>👁</span>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="k-btn k-btn-primary">Daftar</button>
       </form>
-      <div id="msg" class="message"></div>
-      <p><a href="/login.html">Already have an account? Login</a></p>
-    </div>
+
+      <div id="msg" class="message" role="status" aria-live="polite"></div>
+
+      <p class="k-link-row">
+        Sudah punya akun?
+        <a href="/login.html" class="k-link">Masuk</a>
+      </p>
+    </section>
   </div>
+
   <script src="/common.js"></script>
   <script>
     bindRegisterForm();
+    bindPasswordToggles();
   </script>
 </body>
 </html>

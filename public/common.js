@@ -81,3 +81,30 @@ async function requireSession() {
   const data = await response.json();
   return data.user || null;
 }
+
+function bindPasswordToggles() {
+  const toggles = document.querySelectorAll('[data-password-toggle]');
+  if (!toggles.length) return;
+
+  toggles.forEach((toggle) => {
+    const targetId = toggle.getAttribute('data-target');
+    if (!targetId) return;
+
+    const input = document.getElementById(targetId);
+    if (!input) return;
+
+    toggle.addEventListener('click', () => {
+      const isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      toggle.setAttribute(
+        'aria-label',
+        isHidden ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi',
+      );
+
+      const icon = toggle.querySelector('[data-eye-icon]');
+      if (icon) {
+        icon.textContent = isHidden ? '🙈' : '👁';
+      }
+    });
+  });
+}
