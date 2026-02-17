@@ -1,4 +1,5 @@
 const express = require('express');
+const { getDb } = require('../db');
 const TagService = require('../services/tagService');
 const { isValidCode12, isValidDirectLink } = require('../utils/validators');
 
@@ -15,21 +16,35 @@ function toTagId(param) {
   return id;
 }
 
-module.exports = function tagsRouter(db) {
-  const router = express.Router();
-  const service = new TagService(db);
+const router = express.Router();
+const service = new TagService(getDb());
 
-  router.get('/', requireLogin, (req, res) => {
-    try {
-      const data = service.listByUser(req.session.userId);
-      return res.json({ ok: true, data });
+router.get('/', (req, res) => {
+  const userId = req.session?.userId || req.session?.user_id;
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const data = service.listByUser(userId).map((tag) => ({
+      id: tag.id,
+      tag_name: tag.label || tag.name || '',
+      unique_code: tag.code12 || '',
+      owner_name: null,
+      location_note: tag.meet_location_text || tag.notes || '',
+      direct_link: tag.direct_link_override || tag.contact_link_override || '',
+      is_active: Boolean(tag.is_active ?? tag.enabled),
+      created_at: tag.created_at || null,
+      updated_at: tag.updated_at || null,
+    }));
+    return res.json(data);
     } catch (error) {
       console.error(error);
       return res.status(500).json({ ok: false, error: 'Gagal mengambil data tags.' });
     }
   });
 
-  router.post('/', requireLogin, (req, res) => {
+router.post('/', requireLogin, (req, res) => {
     try {
       const payload = req.body || {};
       if (payload.code12 && !isValidCode12(payload.code12)) {
@@ -44,7 +59,7 @@ module.exports = function tagsRouter(db) {
     }
   });
 
-  router.get('/:id', requireLogin, (req, res) => {
+router.get('/:id', requireLogin, (req, res) => {
     try {
       const id = toTagId(req.params.id);
       if (!id) return res.status(400).json({ ok: false, error: 'ID tag tidak valid.' });
@@ -59,7 +74,7 @@ module.exports = function tagsRouter(db) {
     }
   });
 
-  function handlePatch(req, res) {
+function handlePatch(req, res) {
     try {
       const id = toTagId(req.params.id);
       if (!id) return res.status(400).json({ ok: false, error: 'ID tag tidak valid.' });
@@ -82,10 +97,10 @@ module.exports = function tagsRouter(db) {
     }
   }
 
-  router.patch('/:id', requireLogin, handlePatch);
-  router.put('/:id', requireLogin, handlePatch);
+router.patch('/:id', requireLogin, handlePatch);
+router.put('/:id', requireLogin, handlePatch);
 
-  function handleToggle(req, res) {
+function handleToggle(req, res) {
     try {
       const id = toTagId(req.params.id);
       if (!id) return res.status(400).json({ ok: false, error: 'ID tag tidak valid.' });
@@ -105,8 +120,7 @@ module.exports = function tagsRouter(db) {
     }
   }
 
-  router.patch('/:id/toggle', requireLogin, handleToggle);
-  router.patch('/:id/active', requireLogin, handleToggle);
+router.patch('/:id/toggle', requireLogin, handleToggle);
+router.patch('/:id/active', requireLogin, handleToggle);
 
-  return router;
-};
+module.exports = router;
