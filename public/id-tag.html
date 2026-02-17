@@ -48,7 +48,6 @@
       </header>
 
       <section class="k-page-header" aria-label="Header ID Tag">
-        <h2>ID Tag</h2>
         <p>Kelola daftar bandul ID Tag Anda dalam satu tampilan ringkas.</p>
       </section>
 
@@ -57,42 +56,54 @@
           <div class="k-row k-head">
             <span>Nama</span>
             <span>Code</span>
-            <span>Status</span>
+            <span class="k-cell-center">Status</span>
             <span>Switch</span>
-            <span>Edit</span>
+            <span class="k-cell-center">Edit</span>
           </div>
 
           <div class="k-row">
             <span>Bandul Kucing A</span>
-            <span class="k-code-text">KT-2301-AX12</span>
-            <span class="k-pill is-active">Aktif</span>
+            <span class="k-code-text">123456789012</span>
+            <span class="k-cell-center"><span class="k-pill is-active">Aktif</span></span>
             <label class="k-switch" title="Belum tersedia">
               <input type="checkbox" checked disabled>
               <span class="k-switch-slider" aria-hidden="true"></span>
             </label>
-            <button type="button" class="k-btn-mini" disabled>Edit</button>
+            <span class="k-cell-center">
+              <button type="button" class="k-btn-mini" disabled aria-label="Edit ID Tag">
+                <img src="/assets/icons/edit.svg" alt="" width="14" height="14">
+              </button>
+            </span>
           </div>
 
           <div class="k-row">
             <span>Bandul Kucing B</span>
-            <span class="k-code-text">KT-2301-BX99</span>
-            <span class="k-pill is-inactive">Nonaktif</span>
+            <span class="k-code-text">987654321098</span>
+            <span class="k-cell-center"><span class="k-pill is-inactive">Nonaktif</span></span>
             <label class="k-switch" title="Belum tersedia">
               <input type="checkbox" disabled>
               <span class="k-switch-slider" aria-hidden="true"></span>
             </label>
-            <button type="button" class="k-btn-mini" disabled>Edit</button>
+            <span class="k-cell-center">
+              <button type="button" class="k-btn-mini" disabled aria-label="Edit ID Tag">
+                <img src="/assets/icons/edit.svg" alt="" width="14" height="14">
+              </button>
+            </span>
           </div>
 
           <div class="k-row">
             <span>Bandul Kucing C</span>
-            <span class="k-code-text">KT-2301-CX00</span>
-            <span class="k-pill is-pending">Belum siap</span>
+            <span class="k-code-text">102938475610</span>
+            <span class="k-cell-center"><span class="k-pill is-pending">Belum siap</span></span>
             <label class="k-switch" title="Belum tersedia">
               <input type="checkbox" disabled>
               <span class="k-switch-slider" aria-hidden="true"></span>
             </label>
-            <button type="button" class="k-btn-mini" disabled>Edit</button>
+            <span class="k-cell-center">
+              <button type="button" class="k-btn-mini" disabled aria-label="Edit ID Tag">
+                <img src="/assets/icons/edit.svg" alt="" width="14" height="14">
+              </button>
+            </span>
           </div>
         </div>
       </section>
@@ -100,5 +111,21 @@
   </div>
 
   <script src="/app-shell.js"></script>
+  <script>
+    (() => {
+      const formatCode = (rawCode) => {
+        const digitsOnly = rawCode.replace(/\D/g, '');
+        if (digitsOnly.length === 12) {
+          return `${digitsOnly.slice(0, 4)}-${digitsOnly.slice(4, 8)}-${digitsOnly.slice(8, 12)}`;
+        }
+        return rawCode;
+      };
+
+      document.querySelectorAll('.k-code-text').forEach((node) => {
+        const originalCode = node.textContent?.trim() ?? '';
+        node.textContent = formatCode(originalCode);
+      });
+    })();
+  </script>
 </body>
 </html>
