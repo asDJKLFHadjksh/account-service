@@ -72,9 +72,21 @@ function bindLoginForm() {
 }
 
 async function requireSession() {
-  const response = await fetch('/api/me', { credentials: 'include' });
-  if (!response.ok) {
+  const response = await fetch('/api/me', {
+    credentials: 'include',
+    cache: 'no-store',
+  });
+
+  if (response.status === 401) {
     window.location.href = '/login.html';
+    return null;
+  }
+
+  if (response.status === 304) {
+    return null;
+  }
+
+  if (!response.ok) {
     return null;
   }
 

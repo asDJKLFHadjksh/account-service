@@ -20,6 +20,8 @@ const authRoutes = require('./src/routes/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('etag', false);
+
 if (!process.env.SESSION_SECRET) {
   throw new Error('SESSION_SECRET is required.');
 }
@@ -41,6 +43,14 @@ app.use(
 );
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/api', (req, res, next) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+    Pragma: 'no-cache',
+    Expires: '0',
+  });
+  next();
+});
 app.use('/api', authRoutes);
 
 const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
