@@ -1,20 +1,277 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dashboard</title><link rel="stylesheet" href="/styles.css"></head>
-<body><div class="container"><div class="panel"><div class="topbar"><h1>Dashboard</h1><button id="logoutBtn" class="secondary">Logout</button></div>
-<div class="card">Placeholder Module A</div><div class="card">Placeholder Module B</div><div class="card">Placeholder Module C</div>
-<p><a href="/settings-username.html">Change username</a> · <a href="/reset-authenticator.html">Reset authenticator</a></p>
-<div id="msg" class="message"></div></div></div>
-<script src="/common.js"></script><script>
-(async () => {
-  await requireSession();
-})();
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ID Tag</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container k-dashboard-container">
+    <section class="panel k-dashboard-shell" aria-label="Dashboard ID Tag">
+      <aside class="k-sidebar" aria-label="Menu dashboard">
+        <h1 class="k-sidebar-title">Dashboard</h1>
+        <nav class="k-nav">
+          <a class="k-nav-link is-active" href="/dashboard.html">ID Tag</a>
+          <a class="k-nav-link" href="#" aria-disabled="true">Template Profil</a>
+          <a class="k-nav-link" href="/settings-username.html">Pengaturan</a>
+          <a class="k-nav-link" href="/reset-authenticator.html">Reset autentikator</a>
+        </nav>
+        <button id="logoutBtn" class="secondary k-logout-btn" type="button">Keluar</button>
+      </aside>
 
-document.getElementById('logoutBtn').addEventListener('click', async () => {
-  try {
-    await postJson('/api/logout', {});
-    location.href = '/login.html';
-  } catch (err) {
-    showMessage('msg', err.message, 'error');
-  }
-});
-</script></body></html>
+      <main class="k-main-content">
+        <header class="k-main-header">
+          <h2>ID Tag</h2>
+          <p>Kelola bandul Anda dengan tampilan ringkas dan rapi.</p>
+          <button id="openCreateBtn" class="k-btn k-btn-primary" type="button">+ Tambah bandul</button>
+        </header>
+
+        <section class="k-table-card" aria-label="Daftar bandul">
+          <div class="k-table-head">
+            <span>Nama bandul</span>
+            <span>Kode unik</span>
+            <span>Status</span>
+            <span>Direct link</span>
+            <span>Aksi</span>
+          </div>
+          <div id="tagsList" class="k-table-body"></div>
+          <p id="emptyState" class="k-empty-state" hidden>Belum ada bandul. Tambah bandul pertama Anda.</p>
+        </section>
+
+        <div id="msg" class="message" role="status" aria-live="polite"></div>
+      </main>
+    </section>
+  </div>
+
+  <div id="tagModal" class="k-modal" hidden>
+    <div class="k-modal-card">
+      <h3 id="modalTitle">Tambah bandul</h3>
+      <form id="tagForm" novalidate>
+        <input type="hidden" id="tagId" name="tagId">
+
+        <div class="form-row">
+          <label for="tagName">Nama bandul</label>
+          <input id="tagName" name="tagName" required>
+        </div>
+
+        <div class="form-row">
+          <label for="ownerName">Nama pemilik</label>
+          <input id="ownerName" name="ownerName">
+        </div>
+
+        <div class="form-row">
+          <label for="locationNote">Catatan lokasi</label>
+          <input id="locationNote" name="locationNote">
+        </div>
+
+        <div class="form-row">
+          <label for="directLink">Direct link</label>
+          <input id="directLink" name="directLink" placeholder="https://">
+        </div>
+
+        <div class="k-modal-actions">
+          <button type="button" id="cancelModalBtn" class="secondary">Batal</button>
+          <button type="submit" class="k-btn k-btn-primary">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toastRoot" class="k-toast-root" aria-live="polite"></div>
+
+  <script src="/common.js"></script>
+  <script>
+    const state = {
+      tags: [],
+      isEditing: false,
+    };
+
+    const tagsListEl = document.getElementById('tagsList');
+    const emptyStateEl = document.getElementById('emptyState');
+    const modalEl = document.getElementById('tagModal');
+    const formEl = document.getElementById('tagForm');
+
+    function getDirectLink(tag) {
+      return String(tag.contact_link_override || tag.direct_link || '').trim();
+    }
+
+    function createSwitch(tag) {
+      const label = document.createElement('label');
+      label.className = 'k-switch';
+
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = Boolean(tag.enabled);
+      input.addEventListener('change', async () => {
+        input.disabled = true;
+        try {
+          await apiFetch(`/api/tags/${tag.id}/active`, {
+            method: 'PATCH',
+            body: JSON.stringify({ enabled: input.checked }),
+          });
+          await loadTags();
+          showToast('Status bandul berhasil diperbarui.', 'success');
+        } catch (error) {
+          input.checked = !input.checked;
+          showToast(error.message || 'Gagal memperbarui status.', 'error');
+        } finally {
+          input.disabled = false;
+        }
+      });
+
+      const slider = document.createElement('span');
+      slider.className = 'k-switch-slider';
+      slider.setAttribute('aria-hidden', 'true');
+
+      label.appendChild(input);
+      label.appendChild(slider);
+      return label;
+    }
+
+    function createRow(tag) {
+      const row = document.createElement('div');
+      row.className = 'k-table-row';
+
+      const name = document.createElement('span');
+      name.textContent = tag.name || tag.label || tag.tag_name || 'Bandul';
+
+      const codeWrap = document.createElement('div');
+      codeWrap.className = 'k-code-wrap';
+
+      const code = document.createElement('span');
+      code.className = 'k-code';
+      code.textContent = maskCode(tag.code12);
+
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'k-copy-btn';
+      copyBtn.textContent = 'Copy';
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await copyToClipboard(String(tag.code12 || ''));
+          showToast('Kode unik berhasil disalin.', 'success');
+        } catch (_error) {
+          showToast('Gagal menyalin kode unik.', 'error');
+        }
+      });
+
+      codeWrap.append(code, copyBtn);
+
+      const status = document.createElement('div');
+      status.appendChild(createSwitch(tag));
+
+      const directLink = document.createElement('span');
+      const hasLink = Boolean(getDirectLink(tag));
+      directLink.className = `k-status ${hasLink ? 'is-ok' : 'is-bad'}`;
+      directLink.textContent = hasLink ? 'Terisi' : 'Kosong';
+
+      const action = document.createElement('div');
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'secondary k-edit-btn';
+      editBtn.textContent = 'Edit';
+      editBtn.addEventListener('click', () => openModal(tag));
+      action.appendChild(editBtn);
+
+      row.append(name, codeWrap, status, directLink, action);
+      return row;
+    }
+
+    function renderTags() {
+      tagsListEl.innerHTML = '';
+      if (!state.tags.length) {
+        emptyStateEl.hidden = false;
+        return;
+      }
+
+      emptyStateEl.hidden = true;
+      state.tags.forEach((tag) => {
+        tagsListEl.appendChild(createRow(tag));
+      });
+    }
+
+    async function loadTags() {
+      const payload = await apiFetch('/api/tags');
+      state.tags = Array.isArray(payload.data) ? payload.data : [];
+      renderTags();
+    }
+
+    function openModal(tag = null) {
+      state.isEditing = Boolean(tag);
+      document.getElementById('modalTitle').textContent = state.isEditing ? 'Edit bandul' : 'Tambah bandul';
+      document.getElementById('tagId').value = tag?.id || '';
+      document.getElementById('tagName').value = tag?.name || tag?.label || '';
+      document.getElementById('ownerName').value = tag?.notes || '';
+      document.getElementById('locationNote').value = tag?.meet_location_text || '';
+      document.getElementById('directLink').value = tag?.contact_link_override || '';
+      modalEl.hidden = false;
+    }
+
+    function closeModal() {
+      modalEl.hidden = true;
+      formEl.reset();
+      document.getElementById('tagId').value = '';
+    }
+
+    document.getElementById('openCreateBtn').addEventListener('click', () => openModal());
+    document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      try {
+        await postJson('/api/logout', {});
+        location.href = '/login.html';
+      } catch (err) {
+        showMessage('msg', err.message, 'error');
+      }
+    });
+
+    formEl.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const tagId = document.getElementById('tagId').value;
+
+      const payload = {
+        name: document.getElementById('tagName').value.trim(),
+        notes: document.getElementById('ownerName').value.trim(),
+        meet_location_text: document.getElementById('locationNote').value.trim(),
+        contact_link_override: document.getElementById('directLink').value.trim(),
+      };
+
+      if (!payload.name) {
+        showToast('Nama bandul wajib diisi.', 'error');
+        return;
+      }
+
+      try {
+        if (tagId) {
+          await apiFetch(`/api/tags/${tagId}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+          });
+          showToast('Bandul berhasil diperbarui.', 'success');
+        } else {
+          await apiFetch('/api/tags', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          showToast('Bandul berhasil ditambahkan.', 'success');
+        }
+
+        closeModal();
+        await loadTags();
+      } catch (error) {
+        showToast(error.message || 'Gagal menyimpan bandul.', 'error');
+      }
+    });
+
+    (async () => {
+      try {
+        await requireSession();
+        await loadTags();
+      } catch (error) {
+        showMessage('msg', error.message || 'Gagal memuat dashboard.', 'error');
+      }
+    })();
+  </script>
+</body>
+</html>

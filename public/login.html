@@ -53,6 +53,10 @@
   <script>
     bindLoginForm();
     bindPasswordToggles();
+
+    const params = new URLSearchParams(window.location.search);
+    const msg = params.get('msg');
+    if (msg) showMessage('msg', msg, 'error');
   </script>
 </body>
 </html>

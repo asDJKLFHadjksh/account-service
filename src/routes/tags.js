@@ -59,7 +59,7 @@ module.exports = function tagsRouter(db) {
     }
   });
 
-  router.patch('/:id', requireLogin, (req, res) => {
+  function handlePatch(req, res) {
     try {
       const id = toTagId(req.params.id);
       if (!id) return res.status(400).json({ ok: false, error: 'ID tag tidak valid.' });
@@ -80,9 +80,12 @@ module.exports = function tagsRouter(db) {
       const status = error.message?.includes('tidak bisa diubah') ? 400 : 500;
       return res.status(status).json({ ok: false, error: error.message || 'Gagal memperbarui tag.' });
     }
-  });
+  }
 
-  router.patch('/:id/toggle', requireLogin, (req, res) => {
+  router.patch('/:id', requireLogin, handlePatch);
+  router.put('/:id', requireLogin, handlePatch);
+
+  function handleToggle(req, res) {
     try {
       const id = toTagId(req.params.id);
       if (!id) return res.status(400).json({ ok: false, error: 'ID tag tidak valid.' });
@@ -100,7 +103,10 @@ module.exports = function tagsRouter(db) {
       const status = error.statusCode || 500;
       return res.status(status).json({ ok: false, error: error.message || 'Gagal toggle tag.' });
     }
-  });
+  }
+
+  router.patch('/:id/toggle', requireLogin, handleToggle);
+  router.patch('/:id/active', requireLogin, handleToggle);
 
   return router;
 };

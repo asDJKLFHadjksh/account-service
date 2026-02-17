@@ -10,6 +10,68 @@ async function postJson(url, data) {
   return payload;
 }
 
+async function apiFetch(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: 'include',
+    cache: 'no-store',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  });
+
+  if (response.status === 401) {
+    window.location.href = '/login.html?msg=Sesi%20habis,%20silakan%20masuk%20lagi';
+    throw new Error('Sesi habis. Silakan masuk lagi.');
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || 'Permintaan gagal.');
+  }
+  return payload;
+}
+
+function maskCode(code) {
+  const raw = String(code || '').replace(/\D/g, '');
+  if (!raw) return '**** **** ****';
+  const last4 = raw.slice(-4).padStart(4, '*');
+  return `**** **** ${last4}`;
+}
+
+async function copyToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', 'readonly');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  document.execCommand('copy');
+  document.body.removeChild(area);
+}
+
+function showToast(message, type = 'success') {
+  const root = document.getElementById('toastRoot');
+  if (!root) return;
+
+  const toast = document.createElement('div');
+  toast.className = `k-toast ${type}`;
+  toast.textContent = message;
+  root.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('is-hidden');
+    setTimeout(() => toast.remove(), 200);
+  }, 1800);
+}
+
 function showMessage(id, text, type = 'error') {
   const el = document.getElementById(id);
   if (!el) return;
@@ -78,7 +140,7 @@ async function requireSession() {
   });
 
   if (response.status === 401) {
-    window.location.href = '/login.html';
+    window.location.href = '/login.html?msg=Sesi%20habis,%20silakan%20masuk%20lagi';
     return null;
   }
 
