@@ -82,7 +82,7 @@ function getSessionUserId(req) {
 
 function requireLogin(req, res, next) {
   if (!getSessionUserId(req)) {
-    return res.status(400).json({ ok: false, error: 'Session user tidak valid.' });
+    return res.status(401).json({ ok: false, error: 'Not logged in' });
   }
   return next();
 }
