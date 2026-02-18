@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
 
   created_at      TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  free_redeem_used INTEGER NOT NULL DEFAULT 0,
 
   CHECK (username = lower(username)),
   CHECK (length(username) BETWEEN 3 AND 20)
@@ -124,6 +125,15 @@ END;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_tags_user_label ON tags(user_id, label);
 CREATE INDEX IF NOT EXISTS idx_tags_user ON tags(user_id);
 CREATE INDEX IF NOT EXISTS idx_tags_active ON tags(user_id, is_active);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_code12_unique ON tags(code12);
+
+CREATE TABLE IF NOT EXISTS redeem_archive (
+  user_id INTEGER PRIMARY KEY,
+  codes_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 
 -- =========================
 -- CONTACTS (allowlist provider) - TAG OVERRIDE

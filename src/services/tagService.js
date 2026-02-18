@@ -1,5 +1,7 @@
 const { isValidCode12, isValidDirectLink } = require('../utils/validators');
 
+const CODE12_CHARSET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+
 function quoteIdent(identifier) {
   return `"${String(identifier).replace(/"/g, '""')}"`;
 }
@@ -47,12 +49,28 @@ class TagService {
 
     this.addColumnIfMissing('tags', tagCols, 'enabled INTEGER NOT NULL DEFAULT 0', 'enabled');
     this.addColumnIfMissing('tags', tagCols, 'contact_link_override TEXT', 'contact_link_override');
+    this.addColumnIfMissing('tags', tagCols, 'code12 TEXT', 'code12');
     this.addColumnIfMissing('tags', tagCols, 'created_at TEXT', 'created_at');
     this.addColumnIfMissing('tags', tagCols, 'updated_at TEXT', 'updated_at');
 
     this.db.exec(
       "UPDATE tags SET created_at = COALESCE(created_at, datetime('now')), updated_at = COALESCE(updated_at, datetime('now'))"
     );
+    this.db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_code12_unique ON tags(code12)');
+
+    if (this.tableExists('users')) {
+      const userCols = new Set(this.getColumns('users').map((c) => c.name));
+      this.addColumnIfMissing('users', userCols, 'free_redeem_used INTEGER NOT NULL DEFAULT 0', 'free_redeem_used');
+    }
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS redeem_archive (
+        user_id INTEGER PRIMARY KEY,
+        codes_json TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
 
     let templateCols = new Set();
     if (tagTemplateTable) {
@@ -140,15 +158,41 @@ class TagService {
     return this.getTemplateDefaultLink(userId);
   }
 
-  generateUniqueCode12() {
-    const codeCol = this.schema.tags.code12;
-    const sql = `SELECT 1 FROM tags WHERE ${quoteIdent(codeCol)} = ? LIMIT 1`;
-    const stmt = this.db.prepare(sql);
+  randomCode12() {
+    let out = '';
+    for (let i = 0; i < 12; i += 1) {
+      out += CODE12_CHARSET[Math.floor(Math.random() * CODE12_CHARSET.length)];
+    }
+    return out;
+  }
 
-    for (let i = 0; i < 50; i += 1) {
-      const candidate = String(Math.floor(Math.random() * 10 ** 12)).padStart(12, '0');
-      const exists = stmt.get(candidate);
-      if (!exists) return candidate;
+  isCode12Reserved(candidate) {
+    const codeCol = this.schema.tags.code12;
+    const inTags = this.db
+      .prepare(`SELECT 1 FROM tags WHERE ${quoteIdent(codeCol)} = ? LIMIT 1`)
+      .get(candidate);
+    if (inTags) return true;
+
+    const rows = this.db.prepare('SELECT codes_json FROM redeem_archive').all();
+    for (const row of rows) {
+      try {
+        const codes = JSON.parse(row.codes_json || '[]');
+        if (Array.isArray(codes) && codes.includes(candidate)) {
+          return true;
+        }
+      } catch (error) {
+        // ignore malformed archive data
+      }
+    }
+
+    return false;
+  }
+
+  generateUniqueCode12(excludeSet = new Set()) {
+    for (let i = 0; i < 100; i += 1) {
+      const candidate = this.randomCode12();
+      if (excludeSet.has(candidate)) continue;
+      if (!this.isCode12Reserved(candidate)) return candidate;
     }
 
     throw new Error('Gagal generate code12 unik. Coba lagi.');
@@ -170,44 +214,62 @@ class TagService {
     const nameCol = this.schema.tags.name;
     const enabledCol = this.schema.tags.enabled;
 
-    const code12 = payload.code12 ? String(payload.code12).trim() : this.generateUniqueCode12();
-    if (!isValidCode12(code12)) {
-      throw new Error('code12 harus 12 digit numeric.');
+    const requestedCode12 = payload.code12 ? String(payload.code12).trim().toUpperCase() : null;
+    if (requestedCode12 && !isValidCode12(requestedCode12)) {
+      throw new Error('code12 harus 12 karakter huruf/angka tanpa O dan 0.');
     }
 
     const defaultLink = this.getTemplateDefaultLink(userId);
     const enabled = isValidDirectLink(defaultLink) ? 1 : 0;
 
     const columns = [this.schema.tags.userId, this.schema.tags.code12, enabledCol];
-    const values = [userId, code12, enabled];
 
     if (nameCol) {
       columns.push(nameCol);
-      values.push(String(payload.name || '').trim() || 'Bandul');
     }
 
     if (this.schema.tags.createdAt) {
       columns.push(this.schema.tags.createdAt);
-      values.push(new Date().toISOString());
     }
 
     if (this.schema.tags.updatedAt) {
       columns.push(this.schema.tags.updatedAt);
-      values.push(new Date().toISOString());
     }
 
     const placeholders = columns.map(() => '?').join(', ');
     const sql = `INSERT INTO tags (${columns.map(quoteIdent).join(', ')}) VALUES (${placeholders})`;
 
-    try {
-      const result = this.db.prepare(sql).run(...values);
-      return this.getById(userId, Number(result.lastInsertRowid));
-    } catch (error) {
-      if (String(error.message).includes('UNIQUE')) {
-        throw new Error('code12 sudah digunakan.');
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const code12 = requestedCode12 || this.generateUniqueCode12();
+      const values = [userId, code12, enabled];
+
+      if (nameCol) {
+        values.push(String(payload.name || '').trim() || 'Bandul');
       }
-      throw error;
+
+      if (this.schema.tags.createdAt) {
+        values.push(new Date().toISOString());
+      }
+
+      if (this.schema.tags.updatedAt) {
+        values.push(new Date().toISOString());
+      }
+
+      try {
+        const result = this.db.prepare(sql).run(...values);
+        return this.getById(userId, Number(result.lastInsertRowid));
+      } catch (error) {
+        if (String(error.message).includes('UNIQUE')) {
+          if (requestedCode12) {
+            throw new Error('code12 sudah digunakan.');
+          }
+          continue;
+        }
+        throw error;
+      }
     }
+
+    throw new Error('Gagal generate code12 unik. Coba lagi.');
   }
 
   getById(userId, id) {
