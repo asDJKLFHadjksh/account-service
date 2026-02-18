@@ -42,7 +42,7 @@
           ☰
         </button>
         <h1 class="k-shell-page-title">ID Tag</h1>
-        <button class="k-shell-action is-disabled" type="button" aria-disabled="true" disabled title="Coming soon">
+        <button id="addIdTagBtn" class="k-shell-action" type="button">
           <img src="/assets/icons/plus.svg" alt="" width="16" height="16">
           <span>+ ID Tag</span>
         </button>
@@ -68,7 +68,7 @@
     </main>
   </div>
 
-  <div id="editTagModal" class="k-modal" hidden>
+  <div id="editModal" class="k-modal hidden" hidden>
     <div class="k-modal-card" role="dialog" aria-modal="true" aria-labelledby="editTagTitle">
       <h3 id="editTagTitle">Edit ID Tag</h3>
       <form id="editTagForm" class="k-modal-form">
@@ -94,7 +94,7 @@
   </div>
 
 
-  <div id="redeemModal" class="k-modal" hidden>
+  <div id="redeemModal" class="k-modal hidden" hidden>
     <div class="k-modal-card" role="dialog" aria-modal="true" aria-labelledby="redeemTitle">
       <h3 id="redeemTitle">Pilih 1 dari 5 code</h3>
       <p style="margin-top:0;color:#9ca3af;font-size:.92rem;">Pilih satu code untuk di-claim menjadi ID Tag Anda.</p>
@@ -113,8 +113,9 @@
   <script>
     (() => {
       const tagRows = document.getElementById('tagRows');
+      const addIdTagBtn = document.getElementById('addIdTagBtn');
       const emptyState = document.getElementById('tagsEmptyState');
-      const modal = document.getElementById('editTagModal');
+      const editModal = document.getElementById('editModal');
       const editForm = document.getElementById('editTagForm');
       const editError = document.getElementById('editTagError');
       const cancelBtn = document.getElementById('cancelEditTagBtn');
@@ -177,6 +178,23 @@
         return apiFetch('/api/redeem/claim', { method: 'POST', body: JSON.stringify({ code12 }) });
       }
 
+      function closeAllModals() {
+        editModal.classList.add('hidden');
+        editModal.hidden = true;
+        redeemModal.classList.add('hidden');
+        redeemModal.hidden = true;
+        document.body.classList.remove('k-lock-scroll');
+      }
+
+      function openModal(id) {
+        closeAllModals();
+        const target = document.getElementById(id);
+        if (!target) return;
+        target.classList.remove('hidden');
+        target.hidden = false;
+        document.body.classList.add('k-lock-scroll');
+      }
+
       function openEditModal(tag) {
         editingTagId = tag.id;
         nameInput.value = tag.name || '';
@@ -184,29 +202,37 @@
         linkInput.value = tag.contact_link_override || '';
         editError.hidden = true;
         editError.textContent = '';
-        modal.hidden = false;
-        document.body.classList.add('k-lock-scroll');
+        openModal('editModal');
       }
 
       function closeEditModal() {
-        modal.hidden = true;
+        editModal.classList.add('hidden');
+        editModal.hidden = true;
         editingTagId = null;
         editForm.reset();
         editError.hidden = true;
-        document.body.classList.remove('k-lock-scroll');
+        if (redeemModal.hidden) {
+          document.body.classList.remove('k-lock-scroll');
+        }
       }
 
+      function openRedeemModal() { openModal('redeemModal'); }
+
       function closeRedeemModal() {
+        redeemModal.classList.add('hidden');
         redeemModal.hidden = true;
         redeemError.hidden = true;
         redeemError.textContent = '';
-        document.body.classList.remove('k-lock-scroll');
+        if (editModal.hidden) {
+          document.body.classList.remove('k-lock-scroll');
+        }
       }
 
       function renderRows() {
         tagRows.innerHTML = '';
         if (!currentTags.length) {
           emptyState.hidden = false;
+          closeAllModals();
           return;
         }
         emptyState.hidden = true;
@@ -246,10 +272,13 @@
         }
       }
 
-      async function loadRedeemBatch() {
+      async function openRedeemFlow() {
         try {
           const payload = await apiGetRedeemBatch();
-          if (!payload?.ok || !payload?.batch || !Array.isArray(payload.batch.codes) || !payload.batch.codes.length) return;
+          if (!payload?.ok || !payload?.batch || !Array.isArray(payload.batch.codes) || !payload.batch.codes.length) {
+            showToast('Tidak ada redeem code tersedia.', 'error');
+            return;
+          }
 
           redeemCodeList.innerHTML = '';
           payload.batch.codes.forEach((item) => {
@@ -279,11 +308,14 @@
             redeemCodeList.appendChild(button);
           });
 
-          redeemModal.hidden = false;
-          document.body.classList.add('k-lock-scroll');
+          openRedeemModal();
         } catch (error) {
           const message = String(error.message || '');
-          if (message.includes('404') || message.toLowerCase().includes('not found')) return;
+          if (message.includes('404') || message.toLowerCase().includes('not found')) {
+            showToast('Tidak ada redeem code tersedia.', 'error');
+            return;
+          }
+          showToast('Terjadi kesalahan server', 'error');
         }
       }
 
@@ -351,13 +383,17 @@
         }
       });
 
+      addIdTagBtn.addEventListener('click', () => {
+        openRedeemFlow();
+      });
+
       cancelBtn.addEventListener('click', closeEditModal);
-      modal.addEventListener('click', (event) => { if (event.target === modal) closeEditModal(); });
+      editModal.addEventListener('click', (event) => { if (event.target === editModal) closeEditModal(); });
       redeemCloseBtn.addEventListener('click', closeRedeemModal);
       redeemModal.addEventListener('click', (event) => { if (event.target === redeemModal) closeRedeemModal(); });
 
+      closeAllModals();
       loadTags();
-      loadRedeemBatch();
     })();
   </script>
 </body>
