@@ -43,7 +43,6 @@ app.use(
   })
 );
 
-app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api', (req, res, next) => {
   res.set({
     'Cache-Control': 'no-store, no-cache, must-revalidate, private',
@@ -61,6 +60,9 @@ function validateUsername(username) {
   return USERNAME_REGEX.test(username || '');
 }
 
+function getSessionUserId(req) {
+  return req.session?.userId || req.session?.user_id || null;
+}
 
 function requireApiLogin(req, res, next) {
   if (!req.session?.userId) {
@@ -102,8 +104,26 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.redirect('/login.html');
+  const uid = getSessionUserId(req);
+  return res.redirect(uid ? '/dashboard.html' : '/login.html');
 });
+
+app.get('/login.html', (req, res, next) => {
+  const uid = getSessionUserId(req);
+  if (uid) return res.redirect('/dashboard.html');
+  return next();
+});
+
+const protectPages = (req, res, next) => {
+  const uid = getSessionUserId(req);
+  if (!uid) return res.redirect('/login.html');
+  return next();
+};
+
+app.get(['/dashboard.html', '/id-tag.html', '/settings.html'], protectPages, (req, res, next) => next());
+
+app.use(express.static(path.join(__dirname, 'public')));
+
 
 app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
