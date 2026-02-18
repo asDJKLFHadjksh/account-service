@@ -976,3 +976,12 @@ button.secondary { background: transparent; border-color: var(--border); }
     padding: 16px;
   }
 }
+
+/* Force hide for hidden elements */
+[hidden] {
+  display: none !important;
+}
+
+.hidden {
+  display: none !important;
+}
