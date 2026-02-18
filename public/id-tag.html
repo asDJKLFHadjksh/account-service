@@ -93,6 +93,19 @@
     </div>
   </div>
 
+
+  <div id="redeemModal" class="k-modal" hidden>
+    <div class="k-modal-card" role="dialog" aria-modal="true" aria-labelledby="redeemTitle">
+      <h3 id="redeemTitle">Pilih 1 dari 5 code</h3>
+      <p style="margin-top:0;color:#9ca3af;font-size:.92rem;">Pilih satu code untuk di-claim menjadi ID Tag Anda.</p>
+      <div id="redeemCodeList" class="k-modal-form"></div>
+      <p id="redeemError" class="message error" hidden></p>
+      <div class="k-modal-actions">
+        <button type="button" class="secondary" id="redeemCloseBtn">Nanti</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toastRoot" class="k-toast-root" aria-live="polite" aria-atomic="true"></div>
 
   <script src="/common.js"></script>
@@ -108,6 +121,10 @@
       const nameInput = document.getElementById('tagNameInput');
       const locationInput = document.getElementById('tagLocationInput');
       const linkInput = document.getElementById('tagLinkInput');
+      const redeemModal = document.getElementById('redeemModal');
+      const redeemCodeList = document.getElementById('redeemCodeList');
+      const redeemError = document.getElementById('redeemError');
+      const redeemCloseBtn = document.getElementById('redeemCloseBtn');
 
       let currentTags = [];
       let editingTagId = null;
@@ -148,22 +165,16 @@
           : { label: 'Nonaktif', cls: 'is-inactive', canToggle: true, checked: false };
       }
 
-      async function apiGetTags() {
-        return apiFetch('/api/tags');
-      }
-
+      async function apiGetTags() { return apiFetch('/api/tags'); }
       async function apiPatchTag(id, payload) {
-        return apiFetch(`/api/tags/${id}`, {
-          method: 'PATCH',
-          body: JSON.stringify(payload),
-        });
+        return apiFetch(`/api/tags/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
       }
-
       async function apiToggleTag(id, enabled) {
-        return apiFetch(`/api/tags/${id}/toggle`, {
-          method: 'PATCH',
-          body: JSON.stringify({ enabled }),
-        });
+        return apiFetch(`/api/tags/${id}/toggle`, { method: 'PATCH', body: JSON.stringify({ enabled }) });
+      }
+      async function apiGetRedeemBatch() { return apiFetch('/api/redeem/batch'); }
+      async function apiClaimRedeemCode(code12) {
+        return apiFetch('/api/redeem/claim', { method: 'POST', body: JSON.stringify({ code12 }) });
       }
 
       function openEditModal(tag) {
@@ -182,6 +193,13 @@
         editingTagId = null;
         editForm.reset();
         editError.hidden = true;
+        document.body.classList.remove('k-lock-scroll');
+      }
+
+      function closeRedeemModal() {
+        redeemModal.hidden = true;
+        redeemError.hidden = true;
+        redeemError.textContent = '';
         document.body.classList.remove('k-lock-scroll');
       }
 
@@ -225,6 +243,47 @@
         } catch (error) {
           if (String(error.message || '').toLowerCase().includes('sesi habis')) return;
           showToast('Terjadi kesalahan server', 'error');
+        }
+      }
+
+      async function loadRedeemBatch() {
+        try {
+          const payload = await apiGetRedeemBatch();
+          if (!payload?.ok || !payload?.batch || !Array.isArray(payload.batch.codes) || !payload.batch.codes.length) return;
+
+          redeemCodeList.innerHTML = '';
+          payload.batch.codes.forEach((item) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'k-btn-mini';
+            button.style.width = '100%';
+            button.style.marginBottom = '8px';
+            button.textContent = String(item.display || formatCode12(item.code12));
+            button.addEventListener('click', async () => {
+              redeemError.hidden = true;
+              const previous = button.textContent;
+              button.disabled = true;
+              button.textContent = 'Memproses...';
+              try {
+                await apiClaimRedeemCode(String(item.code12 || ''));
+                closeRedeemModal();
+                await loadTags();
+                showToast('Redeem code berhasil di-claim', 'success');
+              } catch (error) {
+                redeemError.textContent = String(error.message || 'Gagal claim code.');
+                redeemError.hidden = false;
+                button.disabled = false;
+                button.textContent = previous;
+              }
+            });
+            redeemCodeList.appendChild(button);
+          });
+
+          redeemModal.hidden = false;
+          document.body.classList.add('k-lock-scroll');
+        } catch (error) {
+          const message = String(error.message || '');
+          if (message.includes('404') || message.toLowerCase().includes('not found')) return;
         }
       }
 
@@ -293,11 +352,12 @@
       });
 
       cancelBtn.addEventListener('click', closeEditModal);
-      modal.addEventListener('click', (event) => {
-        if (event.target === modal) closeEditModal();
-      });
+      modal.addEventListener('click', (event) => { if (event.target === modal) closeEditModal(); });
+      redeemCloseBtn.addEventListener('click', closeRedeemModal);
+      redeemModal.addEventListener('click', (event) => { if (event.target === redeemModal) closeRedeemModal(); });
 
       loadTags();
+      loadRedeemBatch();
     })();
   </script>
 </body>

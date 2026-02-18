@@ -17,6 +17,7 @@ const {
 const { canAttempt, registerFailure, clearAttempts } = require('./src/rateLimit');
 const authRoutes = require('./src/routes/auth');
 const tagsRoutes = require('./src/routes/tags');
+const redeemRoutes = require('./src/routes/redeem');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -53,6 +54,7 @@ app.use('/api', (req, res, next) => {
 });
 app.use('/api', authRoutes);
 app.use('/api/tags', tagsRoutes);
+app.use('/api/redeem', redeemRoutes);
 
 const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/;
 

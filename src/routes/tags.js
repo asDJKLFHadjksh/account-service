@@ -1,5 +1,5 @@
-const express = require('express');
 const { getDb } = require('../db');
+const express = require('express');
 const TagService = require('../services/tagService');
 const { isValidCode12, isValidDirectLink } = require('../utils/validators');
 
@@ -20,11 +20,6 @@ const router = express.Router();
 const db = getDb();
 const service = new TagService(db);
 
-function formatCode12(raw) {
-  const v = String(raw || '').trim().toUpperCase();
-  if (v.length !== 12) return v;
-  return `${v.slice(0, 4)}-${v.slice(4, 8)}-${v.slice(8, 12)}`;
-}
 
 function getSessionUserId(req) {
   return req.session?.userId || req.session?.user_id || null;
@@ -59,7 +54,7 @@ router.post('/', requireLogin, (req, res) => {
     try {
       const payload = req.body || {};
       if (payload.code12 && !isValidCode12(String(payload.code12).toUpperCase())) {
-        return res.status(400).json({ ok: false, error: 'code12 harus 12 karakter huruf/angka tanpa O dan 0.' });
+        return res.status(400).json({ ok: false, error: 'code12 harus 12 digit angka.' });
       }
 
       const created = service.create(getSessionUserId(req), payload);
@@ -71,119 +66,6 @@ router.post('/', requireLogin, (req, res) => {
   });
 
 
-router.get('/redeem/options', requireLogin, (req, res) => {
-  try {
-    const userId = getSessionUserId(req);
-    const user = db
-      .prepare('SELECT free_redeem_used FROM users WHERE id = ? LIMIT 1')
-      .get(userId);
-
-    if (!user) return res.status(404).json({ ok: false, error: 'User tidak ditemukan.' });
-    if (Number(user.free_redeem_used || 0) === 1) {
-      return res.status(403).json({ ok: false, error: 'Redeem gratis sudah digunakan.' });
-    }
-
-    const options = [];
-    const chosen = new Set();
-    for (let i = 0; i < 5; i += 1) {
-      const raw = service.generateUniqueCode12(chosen);
-      chosen.add(raw);
-      options.push({ raw, display: formatCode12(raw) });
-    }
-
-    return res.json({ ok: true, data: { options } });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: 'Gagal menyiapkan opsi redeem.' });
-  }
-});
-
-router.post('/redeem/claim', requireLogin, (req, res) => {
-  try {
-    const userId = getSessionUserId(req);
-    const code12 = String(req.body?.code12 || '').trim().toUpperCase();
-
-    if (!isValidCode12(code12)) {
-      return res.status(400).json({ ok: false, error: 'Format code12 tidak valid.' });
-    }
-
-    const user = db
-      .prepare('SELECT free_redeem_used FROM users WHERE id = ? LIMIT 1')
-      .get(userId);
-
-    if (!user) return res.status(404).json({ ok: false, error: 'User tidak ditemukan.' });
-    if (Number(user.free_redeem_used || 0) === 1) {
-      return res.status(403).json({ ok: false, error: 'Redeem gratis sudah digunakan.' });
-    }
-
-    const tx = db.transaction(() => {
-      let createdTag;
-      try {
-        createdTag = service.create(userId, { code12 });
-      } catch (error) {
-        if (String(error.message || '').includes('sudah digunakan')) {
-          const e = new Error('Kode sudah tidak tersedia. Silakan redeem ulang.');
-          e.statusCode = 409;
-          throw e;
-        }
-        throw error;
-      }
-
-      db.prepare("UPDATE users SET free_redeem_used = 1, updated_at = datetime('now') WHERE id = ?").run(userId);
-
-      const reserveSet = new Set([code12]);
-      const reserved = [];
-      for (let i = 0; i < 4; i += 1) {
-        const next = service.generateUniqueCode12(reserveSet);
-        reserveSet.add(next);
-        reserved.push(next);
-      }
-
-      db.prepare(`
-        INSERT INTO redeem_archive (user_id, codes_json, updated_at)
-        VALUES (?, ?, datetime('now'))
-        ON CONFLICT(user_id) DO UPDATE SET
-          codes_json = excluded.codes_json,
-          updated_at = datetime('now')
-      `).run(userId, JSON.stringify(reserved));
-
-      return { createdTag, archiveCount: reserved.length };
-    });
-
-    const result = tx();
-    return res.json({ ok: true, data: { tag: result.createdTag, archive_count: result.archiveCount } });
-  } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({ ok: false, error: error.message });
-    }
-    return res.status(500).json({ ok: false, error: 'Gagal redeem kode.' });
-  }
-});
-
-router.get('/redeem/archive', requireLogin, (req, res) => {
-  try {
-    const userId = getSessionUserId(req);
-    const row = db.prepare('SELECT codes_json FROM redeem_archive WHERE user_id = ? LIMIT 1').get(userId);
-
-    let parsed = [];
-    if (row?.codes_json) {
-      try {
-        const arr = JSON.parse(row.codes_json);
-        if (Array.isArray(arr)) parsed = arr;
-      } catch (error) {
-        parsed = [];
-      }
-    }
-
-    const codes = parsed
-      .map((raw) => String(raw || '').trim().toUpperCase())
-      .filter((raw) => isValidCode12(raw))
-      .map((raw) => ({ raw, display: formatCode12(raw) }));
-
-    return res.json({ ok: true, data: { codes } });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: 'Gagal mengambil arsip redeem.' });
-  }
-});
 
 router.get('/:id', requireLogin, (req, res) => {
     try {

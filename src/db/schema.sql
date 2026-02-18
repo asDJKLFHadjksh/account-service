@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at      TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
   free_redeem_used INTEGER NOT NULL DEFAULT 0,
+  redeem_credits  INTEGER NOT NULL DEFAULT 0,
 
   CHECK (username = lower(username)),
   CHECK (length(username) BETWEEN 3 AND 20)
@@ -127,13 +128,51 @@ CREATE INDEX IF NOT EXISTS idx_tags_user ON tags(user_id);
 CREATE INDEX IF NOT EXISTS idx_tags_active ON tags(user_id, is_active);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_code12_unique ON tags(code12);
 
-CREATE TABLE IF NOT EXISTS redeem_archive (
-  user_id INTEGER PRIMARY KEY,
-  codes_json TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+-- =========================
+-- REDEEM BATCHES / REDEEM CODES
+-- =========================
+CREATE TABLE IF NOT EXISTS redeem_batches (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     INTEGER NOT NULL,
+  status      TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','CLAIMED','OVERWRITTEN')),
+  is_free     INTEGER NOT NULL DEFAULT 0 CHECK (is_free IN (0,1)),
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TRIGGER IF NOT EXISTS trg_redeem_batches_updated_at
+AFTER UPDATE ON redeem_batches
+FOR EACH ROW
+BEGIN
+  UPDATE redeem_batches SET updated_at = datetime('now') WHERE id = NEW.id;
+END;
+
+CREATE TABLE IF NOT EXISTS redeem_codes (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  batch_id    INTEGER NOT NULL,
+  user_id     INTEGER NOT NULL,
+  code12      TEXT NOT NULL,
+  status      TEXT NOT NULL DEFAULT 'OFFERED' CHECK (status IN ('OFFERED','CLAIMED','RELEASED')),
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+
+  FOREIGN KEY (batch_id) REFERENCES redeem_batches(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_redeem_codes_updated_at
+AFTER UPDATE ON redeem_codes
+FOR EACH ROW
+BEGIN
+  UPDATE redeem_codes SET updated_at = datetime('now') WHERE id = NEW.id;
+END;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_redeem_codes_code12 ON redeem_codes(code12);
+CREATE INDEX IF NOT EXISTS idx_redeem_batches_user_status ON redeem_batches(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_redeem_codes_batch ON redeem_codes(batch_id, status);
+CREATE INDEX IF NOT EXISTS idx_redeem_codes_user_status ON redeem_codes(user_id, status);
 
 -- =========================
 -- CONTACTS (allowlist provider) - TAG OVERRIDE
@@ -153,3 +192,4 @@ CREATE TABLE IF NOT EXISTS contacts_tag (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ctag_tag ON contacts_tag(tag_id);
+
