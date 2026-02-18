@@ -1,4 +1,4 @@
-const CODE12_REGEX = /^\d{12}$/;
+const CODE12_REGEX = /^[A-NP-Z1-9]{12}$/;
 
 const ALLOWED_PREFIXES = [
   'https://wa.me/',
@@ -10,7 +10,7 @@ const ALLOWED_PREFIXES = [
 ];
 
 function isValidCode12(value) {
-  return CODE12_REGEX.test(String(value || ''));
+  return CODE12_REGEX.test(String(value || '').trim().toUpperCase());
 }
 
 function isValidDirectLink(value) {
