@@ -42,7 +42,7 @@
           ☰
         </button>
         <h1 class="k-shell-page-title">ID Tag</h1>
-        <button id="btnAddTag" class="k-shell-action" type="button" title="Tambah ID Tag">
+        <button class="k-shell-action is-disabled" type="button" aria-disabled="true" disabled title="Coming soon">
           <img src="/assets/icons/plus.svg" alt="" width="16" height="16">
           <span>+ ID Tag</span>
         </button>
@@ -63,10 +63,7 @@
           </div>
           <div id="tagRows"></div>
         </div>
-        <div id="tagsEmptyState" class="k-empty-state" hidden>
-          <p style="margin:0;">Belum ada ID Tag</p>
-          <button id="btnAddTagEmpty" type="button" class="k-btn-mini" style="margin-top:8px;">+ ID Tag</button>
-        </div>
+        <p id="tagsEmptyState" class="k-empty-state" hidden>Belum ada ID Tag</p>
       </section>
     </main>
   </div>
@@ -128,8 +125,6 @@
       const redeemCodeList = document.getElementById('redeemCodeList');
       const redeemError = document.getElementById('redeemError');
       const redeemCloseBtn = document.getElementById('redeemCloseBtn');
-      const addTagBtn = document.getElementById('btnAddTag');
-      const addTagEmptyBtn = document.getElementById('btnAddTagEmpty');
 
       let currentTags = [];
       let editingTagId = null;
@@ -208,17 +203,13 @@
         document.body.classList.remove('k-lock-scroll');
       }
 
-      function renderEmptyState(isEmpty) {
-        emptyState.hidden = !isEmpty;
-      }
-
       function renderRows() {
         tagRows.innerHTML = '';
         if (!currentTags.length) {
-          renderEmptyState(true);
+          emptyState.hidden = false;
           return;
         }
-        renderEmptyState(false);
+        emptyState.hidden = true;
 
         currentTags.forEach((tag) => {
           const status = getStatus(tag);
@@ -255,13 +246,10 @@
         }
       }
 
-      async function openRedeemBatchModal() {
+      async function loadRedeemBatch() {
         try {
           const payload = await apiGetRedeemBatch();
-          if (!payload?.ok || !payload?.batch || !Array.isArray(payload.batch.codes) || !payload.batch.codes.length) {
-            showToast('Belum ada kode redeem yang tersedia', 'error');
-            return;
-          }
+          if (!payload?.ok || !payload?.batch || !Array.isArray(payload.batch.codes) || !payload.batch.codes.length) return;
 
           redeemCodeList.innerHTML = '';
           payload.batch.codes.forEach((item) => {
@@ -363,17 +351,13 @@
         }
       });
 
-      addTagBtn?.addEventListener('click', openRedeemBatchModal);
-      addTagEmptyBtn?.addEventListener('click', openRedeemBatchModal);
-
       cancelBtn.addEventListener('click', closeEditModal);
       modal.addEventListener('click', (event) => { if (event.target === modal) closeEditModal(); });
       redeemCloseBtn.addEventListener('click', closeRedeemModal);
       redeemModal.addEventListener('click', (event) => { if (event.target === redeemModal) closeRedeemModal(); });
 
-      closeEditModal();
-      closeRedeemModal();
       loadTags();
+      loadRedeemBatch();
     })();
   </script>
 </body>
