@@ -216,7 +216,7 @@ class TagService {
 
     const requestedCode12 = payload.code12 ? String(payload.code12).trim().toUpperCase() : null;
     if (requestedCode12 && !isValidCode12(requestedCode12)) {
-      throw new Error('code12 harus 12 karakter huruf/angka tanpa O dan 0.');
+      throw new Error('code12 harus 12 digit angka.');
     }
 
     const defaultLink = this.getTemplateDefaultLink(userId);

@@ -1,4 +1,4 @@
-const CODE12_REGEX = /^[A-NP-Z1-9]{12}$/;
+const CODE12_REGEX = /^\d{12}$/;
 
 const ALLOWED_PREFIXES = [
   'https://wa.me/',
