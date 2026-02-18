@@ -1,0 +1,500 @@
+SYSTEM SNAPSHOT — account-service
+Generated from current repository state.
+
+============================================================
+1) PROJECT OVERVIEW
+============================================================
+
+What this service does
+- account-service is a standalone account and authentication backend + web UI for the Kuhyakuya ecosystem.
+- It handles user registration, login, session management, TOTP setup/verification, recovery codes, logout, and profile actions (username change).
+- It also contains the "ID Tag" management feature, where users can manage tags tied to 12-character codes (code12).
+
+Main domain
+- This service is intended to run for: account.kuhyakuya.com (account/authentication surface).
+- The TOTP issuer/labels in code use the Kuhyakuya brand (e.g., kuhyakuya / kuhyakuya.com).
+
+Relationship with key-lookup service
+- account-service is the owner/admin side: users authenticate, claim/redeem code12, edit tag metadata, and activate/deactivate tags.
+- key-lookup (separate service) is expected to be the public/resolution side: it can consume the code12/tag state produced here to resolve end-user lookup flows.
+- There is no direct HTTP call from this repo to key-lookup; integration is data-contract based (shared semantics around tags + code12 + active status + link fields).
+
+Purpose of ID Tag feature
+- ID Tag provides a user-managed identifier (code12) attached to a tag record.
+- Users can claim one code from redeem batches, then configure display data (name, location note, direct link override), and control active state.
+- The feature is designed as an optional extension to account users, not as a hard dependency for account creation/login.
+
+ID Tag optionality (IMPORTANT)
+- ID Tag is OPTIONAL.
+- Users can register/login/use account functions without creating or claiming any ID Tag.
+- Redeem flow is user-triggered from ID Tag page (+ ID Tag button), not mandatory during onboarding.
+
+
+============================================================
+2) SERVER STRUCTURE
+============================================================
+
+Folder structure (high-level tree)
+.
+├── server.js                         # Actual app bootstrap + route registration
+├── src/
+│   ├── server.js                     # Thin entry that requires ../server
+│   ├── db/
+│   │   ├── index.js                  # DB connection helpers (better-sqlite3)
+│   │   ├── migrate.js                # migration runner
+│   │   └── schema.sql                # base schema
+│   ├── routes/
+│   │   ├── auth.js                   # /api auth/session/TOTP routes
+│   │   ├── tags.js                   # /api/tags routes
+│   │   └── redeem.js                 # /api/redeem routes
+│   ├── services/
+│   │   ├── tagService.js             # tag CRUD/toggle/schema adaptation
+│   │   └── redeemService.js          # redeem batch/claim/overwrite logic
+│   ├── security.js                   # PBKDF2 + AES-GCM + recovery code hashing/generation
+│   ├── rateLimit.js                  # in-memory login attempt limiter
+│   └── utils/                        # validators/hash/recovery utility modules
+├── public/                           # static frontend pages (Vanilla HTML/CSS/JS)
+├── scripts/                          # db init/seed scripts
+└── README.md
+
+Main entry file
+- Runtime start script (`npm start`) runs `node -r dotenv/config src/server.js`.
+- `src/server.js` immediately loads `../server.js`.
+- Therefore, root `server.js` is the real application entrypoint.
+
+Important routes (server-level)
+- Public/health pages:
+  - GET /health
+  - GET /
+  - GET /register, /login, /setup-authenticator, /forgot-password, /reset-authenticator
+- Protected page delivery:
+  - GET /settings/username
+  - GET /dashboard
+- Non-/api auth flows (legacy/main web flow endpoints):
+  - POST /register
+  - POST /login
+  - POST /forgot-password
+  - POST /reset-authenticator
+  - POST /reset-authenticator/verify
+  - POST /setup-authenticator/verify
+  - POST /settings/username
+  - POST /logout
+- API mount points:
+  - app.use('/api', authRoutes)
+  - app.use('/api/tags', tagsRoutes)
+  - app.use('/api/redeem', redeemRoutes)
+  - Additional API in server.js: GET /api/setup-authenticator, GET /api/recovery-codes
+
+Important services
+- TagService (src/services/tagService.js)
+  - Ensures/mutates schema compatibility for tags/templates/users at startup.
+  - Creates tags, lists per user, patches editable fields, and toggles active state with direct-link guard.
+  - Generates unique code12 values and prevents collisions against active/reserved pools.
+- RedeemService (src/services/redeemService.js)
+  - Creates redeem batches (5 offered codes), returns active batch, claims code into tags, overwrites active batch via credits.
+  - Uses transactional operations for consistency.
+
+Middleware used
+- express.urlencoded + express.json body parsers.
+- express-session for cookie-backed login sessions.
+- express.static for `/public` assets/pages.
+- `/api` cache-control middleware (no-store/no-cache headers).
+- Route-level auth guards:
+  - requireApiLogin / requireLogin / requireActiveUser (session-based).
+
+
+============================================================
+3) DATABASE STRUCTURE
+============================================================
+
+Engine and access
+- SQLite via better-sqlite3.
+- WAL mode enabled.
+- Foreign key constraints enabled.
+
+All tables in schema.sql
+1) users
+2) recovery_codes
+3) templates
+4) contacts_template
+5) tags
+6) redeem_batches
+7) redeem_codes
+8) contacts_tag
+
+Plus runtime-created (service-level compatibility table)
+9) redeem_archive (created by TagService if missing)
+
+Table-by-table details
+
+1) users
+- Purpose: master account identity + auth/totp/redeem state.
+- Key columns:
+  - id (PK)
+  - username (unique, lowercase, length constrained)
+  - password_hash
+  - totp_secret
+  - totp_enabled (0/1)
+  - free_redeem_used (0/1 one-time free batch state)
+  - redeem_credits (paid/extra overwrite currency)
+  - created_at, updated_at
+- Relationships:
+  - 1:N to recovery_codes, templates, tags, redeem_batches, redeem_codes.
+
+2) recovery_codes
+- Purpose: store one-time recovery code hashes for account recovery/auth reset.
+- Columns:
+  - id (PK)
+  - user_id (FK -> users.id)
+  - code_hash
+  - used (0/1)
+  - created_at
+- Relationship: belongs to a user.
+
+3) templates
+- Purpose: default metadata profile for user tags.
+- Columns:
+  - id (PK)
+  - user_id (FK -> users.id)
+  - name, base_tag_name
+  - instructions_default
+  - created_at, updated_at
+- Relationship: belongs to user; can be referenced by tags.template_id.
+
+4) contacts_template
+- Purpose: provider/handle allowlist contact set at template level.
+- Columns:
+  - id (PK)
+  - template_id (FK -> templates.id)
+  - provider (enum-like CHECK)
+  - handle
+  - created_at
+
+5) tags
+- Purpose: persisted ID Tag objects owned by users.
+- Columns (base schema):
+  - id (PK)
+  - user_id (FK -> users.id)
+  - template_id (FK -> templates.id, nullable)
+  - label
+  - code12 (unique)
+  - is_active, manually_disabled, override_contact
+  - instructions_override
+  - created_at, updated_at
+- Runtime compatibility extension in TagService may add/normalize columns:
+  - enabled
+  - contact_link_override
+  - code12 (if legacy absent)
+  - created_at / updated_at (if legacy absent)
+- Relationship: belongs to user; optional relation to template.
+
+6) redeem_batches
+- Purpose: container for one redeem offering session (typically 5 offered codes).
+- Columns:
+  - id (PK)
+  - user_id (FK -> users.id)
+  - status: ACTIVE | CLAIMED | OVERWRITTEN
+  - is_free (0/1)
+  - created_at, updated_at
+- Relationship: user-owned, parent for redeem_codes.
+
+7) redeem_codes
+- Purpose: concrete code12 candidates offered/claimed/released in a batch.
+- Columns:
+  - id (PK)
+  - batch_id (FK -> redeem_batches.id)
+  - user_id (FK -> users.id)
+  - code12 (unique)
+  - status: OFFERED | CLAIMED | RELEASED
+  - created_at, updated_at
+
+8) contacts_tag
+- Purpose: provider/handle allowlist contact overrides per tag.
+- Columns:
+  - id (PK)
+  - tag_id (FK -> tags.id)
+  - provider
+  - handle
+  - created_at
+
+9) redeem_archive (runtime, service-created)
+- Purpose: archive of reserved/released code pools serialized as JSON to prevent reuse collisions.
+- Columns:
+  - user_id (PK)
+  - codes_json
+  - created_at, updated_at
+
+Redeem system logic (redeem_batches, redeem_credits, tags, tag_templates)
+- Free first batch:
+  - GET /api/redeem/batch returns current ACTIVE batch, or auto-creates one FREE batch if user.free_redeem_used == 0.
+  - Once created as free, users.free_redeem_used is set to 1.
+- Batch composition:
+  - Each batch includes 5 unique 12-digit numeric code12 values.
+  - Stored in redeem_codes with status OFFERED.
+- Claim flow:
+  - POST /api/redeem/claim with selected code12.
+  - Validates code exists in active batch and is OFFERED.
+  - Creates real tag in tags via TagService.create(userId, { code12 }).
+  - Marks redeem_code CLAIMED and redeem_batch CLAIMED.
+- Overwrite flow:
+  - POST /api/redeem/overwrite requires users.redeem_credits > 0.
+  - Decrements redeem_credits.
+  - Existing active batch (if any) => OVERWRITTEN.
+  - Any remaining OFFERED codes in that batch => RELEASED.
+  - Creates a new (non-free) ACTIVE batch with fresh 5 codes.
+- Template/default contact link interaction:
+  - TagService can derive effective direct link from template defaults when override is absent.
+  - Activation checks require a valid effective direct link.
+
+
+============================================================
+4) FRONTEND STRUCTURE (public/)
+============================================================
+
+Pages
+- login.html
+- register.html
+- recovery.html
+- setup-authenticator.html
+- forgot-password.html
+- reset-authenticator.html
+- dashboard.html
+- id-tag.html
+- settings.html
+- settings-username.html
+
+Shared frontend scripts
+- public/common.js
+  - fetch wrappers, session handling redirect (401 -> login), toasts, form binders.
+- public/app-shell.js
+  - shell layout behavior (sidebar/drawer, active nav, username/avatar fetch via /api/me).
+
+id-tag.html flow (high-level)
+- Builds dashboard-like shell + table of tags.
+- Provides:
+  - + ID Tag button (opens redeem flow)
+  - Edit button per row (opens edit modal)
+  - Toggle switch per row (active/nonactive)
+- Includes two modals:
+  1) Edit Modal (name, location note, direct link override)
+  2) Redeem Modal (list 5 offered codes, choose one to claim)
+
+How modals work (edit modal & redeem modal)
+- Central modal helpers:
+  - closeAllModals(): hides both and unlocks body scroll.
+  - openModal(id): closes all first, then opens target and locks scroll.
+- Edit modal:
+  - openEditModal(tag) pre-fills fields and stores editingTagId.
+  - closeEditModal() clears form/error and unlocks scroll if redeem modal is not open.
+- Redeem modal:
+  - openRedeemFlow() fetches redeem batch, renders code buttons, then opens modal.
+  - Clicking a code runs claim API; on success closes modal, reloads tags, shows toast.
+  - closeRedeemModal() clears error and unlocks scroll if edit modal is not open.
+
+How tags are loaded and rendered
+- loadTags() -> GET /api/tags
+- normalizeTagsResponse() handles either raw array or { data: [] } shape.
+- mapTag() normalizes backend key variants (name/tag_name, code12/unique_code, etc.).
+- renderRows():
+  - clears table body
+  - shows empty-state when no tags
+  - computes status via getStatus(tag)
+  - renders row HTML with:
+    - formatted code12 as XXXX-XXXX-XXXX
+    - status pill
+    - toggle control
+    - edit button
+- Toggle change handler calls PATCH /api/tags/:id/toggle and reloads state.
+
+
+============================================================
+5) API ENDPOINTS
+============================================================
+
+NOTE
+- `/api/*` includes endpoints from three mounted routers and direct server routes.
+- Response shapes below are based on current implementation; some are not fully uniform.
+
+A) Auth/session routes under /api (src/routes/auth.js mounted at /api)
+
+1. POST /api/register
+- Purpose: register account + generate initial TOTP + recovery codes.
+- Request body: { username, password }
+- Success (201):
+  {
+    ok: true,
+    user: { id, username, totpEnabled: false },
+    totp: { secret, otpauthUrl },
+    recoveryCodes: [ ... ],
+    next: '/setup-authenticator.html',
+    note: '...'
+  }
+
+2. POST /api/login
+- Purpose: login with username/password.
+- Request body: { username, password }
+- Success:
+  { ok: true, user: { id, username, totpEnabled } }
+
+3. GET /api/me
+- Purpose: return current session user summary.
+- Success:
+  { ok: true, user: { id, username, totpEnabled } }
+
+4. GET /api/otp/setup
+- Purpose: get/create TOTP secret and QR data for current user.
+- Success:
+  { ok: true, secret, otpauthUrl, qrDataUrl }
+
+5. POST /api/otp/enable
+- Purpose: verify OTP token and enable TOTP.
+- Request body: { token } or { otp }
+- Success:
+  { ok: true, alreadyEnabled: boolean }
+
+6. POST /api/logout
+- Purpose: destroy session.
+- Success:
+  { ok: true }
+
+B) Direct /api routes in root server.js
+
+7. GET /api/setup-authenticator
+- Purpose: setup data for pending registration or reset-authenticator flow.
+- Success:
+  { qrDataUrl, manualKey, username, resetMode }
+
+8. GET /api/recovery-codes
+- Purpose: one-time retrieval of recovery codes stored in session.
+- Success:
+  { codes: [ '1234-5678', ... ] }
+
+C) Tag routes under /api/tags (src/routes/tags.js)
+
+9. GET /api/tags
+- Purpose: list current user tags.
+- Success:
+  [
+    {
+      id,
+      tag_name,
+      unique_code,
+      owner_name,
+      location_note,
+      direct_link,
+      is_active,
+      created_at,
+      updated_at
+    }
+  ]
+
+10. POST /api/tags
+- Purpose: create tag (optional provided code12; else generated).
+- Request body: tag payload
+- Success (201):
+  { ok: true, data: { ...tagRowNormalized } }
+
+11. GET /api/tags/:id
+- Purpose: get one user-owned tag by id.
+- Success:
+  { ok: true, data: { ...tag } }
+
+12. PATCH /api/tags/:id
+13. PUT /api/tags/:id
+- Purpose: patch editable tag fields.
+- Request body supports: name, notes, description, meet_location_text, contact_link_override
+- Success:
+  { ok: true, data: { ...updatedTag } }
+
+14. PATCH /api/tags/:id/toggle
+15. PATCH /api/tags/:id/active
+- Purpose: set enabled state.
+- Request body: { enabled: boolean }
+- Success:
+  { ok: true, enabled: boolean }
+
+D) Redeem routes under /api/redeem (src/routes/redeem.js)
+
+16. GET /api/redeem/batch
+- Purpose: get current ACTIVE batch; auto-create free batch once if eligible.
+- Success:
+  { ok: true, batch: { id, status, is_free, created_at, codes: [{ code12, status, display }] } }
+
+17. POST /api/redeem/claim
+- Purpose: claim one OFFERED code12 into real tag.
+- Request body: { code12: '12-digit' }
+- Success:
+  { ok: true, tag: { id, code12, label, enabled } }
+
+18. POST /api/redeem/overwrite
+- Purpose: consume 1 redeem credit, invalidate active batch, generate a new batch.
+- Success:
+  { ok: true, batch: { id, status, is_free, created_at, codes:[...] } }
+
+
+============================================================
+6) CURRENT FLOW OF ID TAG PAGE
+============================================================
+
+On script initialization (after page parse)
+1) Grabs all needed DOM references (table, buttons, modals, forms, errors).
+2) Initializes state variables:
+   - currentTags = []
+   - editingTagId = null
+3) Registers handlers:
+   - row click -> edit modal
+   - toggle change -> activate/deactivate API
+   - edit form submit -> patch API
+   - + ID Tag button -> redeem flow
+   - modal close events (buttons + click-backdrop)
+4) Calls:
+   - closeAllModals()
+   - loadTags()
+
+Functions called during normal flow
+- loadTags()
+  - apiGetTags() -> normalizeTagsResponse() -> mapTag() -> renderRows()
+- renderRows()
+  - getStatus(tag)
+  - formatCode12()
+- openRedeemFlow()
+  - apiGetRedeemBatch()
+  - builds button list
+  - on code button click -> apiClaimRedeemCode() -> closeRedeemModal() -> loadTags()
+
+Functions that can open modals
+- openEditModal(tag)
+  - called from row edit button click handler
+- openRedeemModal()
+  - called only by openRedeemFlow() after redeem batch is loaded
+- openModal(id)
+  - internal utility used by both modal-open paths
+
+
+============================================================
+7) KNOWN ISSUES / OBSERVED BEHAVIOR
+============================================================
+
+1) Auto popup issue (historical/UX concern)
+- Current code does NOT auto-open redeem modal on page load; it opens only from + ID Tag click.
+- However, user perception of auto-popup can occur if custom scripts/extensions trigger click events on action buttons.
+- In-app default flow itself is click-triggered.
+
+2) Modal stacking issue
+- The implementation intentionally prevents stacking by calling closeAllModals() before opening a modal.
+- Body scroll lock is toggled globally (`k-lock-scroll`), so racey rapid UI actions can still feel like modal state "flicker" if asynchronous flow completes after user actions.
+- No z-index stack manager exists; modal state depends on hidden/class toggles and timing.
+
+3) API response shape inconsistency
+- Some endpoints return `{ ok: true, ... }`, some return bare arrays or objects, and error contracts vary by route.
+- Frontend compensates with normalizers; this increases maintenance complexity and can break consumers expecting a single schema.
+
+4) Dual auth implementations coexist
+- Root server.js has non-/api auth endpoints, while src/routes/auth.js exposes overlapping /api equivalents.
+- This is functional but can confuse clients and documentation unless one canonical path set is enforced.
+
+5) Schema compatibility layer side effects
+- TagService performs runtime schema mutation (ALTER TABLE / extra table creation) during service initialization.
+- Useful for compatibility, but it means schema may drift from static schema.sql depending on runtime history.
+
+END OF SNAPSHOT
