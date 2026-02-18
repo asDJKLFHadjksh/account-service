@@ -985,3 +985,29 @@ button.secondary { background: transparent; border-color: var(--border); }
 .hidden {
   display: none !important;
 }
+
+.k-panel { margin-top: 18px; }
+.k-panel-card {
+  max-width: 720px;
+  border: 1px solid rgba(138, 78, 255, 0.35);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.02);
+  padding: 16px;
+}
+.k-panel-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom: 12px;
+}
+.k-panel-title{ margin:0; font-size: 1.05rem; }
+.k-panel-sub{ margin:6px 0 0; color: rgba(255,255,255,0.55); font-size: .9rem; }
+.k-panel-list{ display:grid; gap:10px; margin-top:10px; }
+.k-panel-list .k-btn-mini{
+  width:100%;
+  height:40px;
+  border-radius:10px;
+  justify-content:center;
+}
+.k-panel-actions{ display:flex; justify-content:flex-end; margin-top: 12px; }
