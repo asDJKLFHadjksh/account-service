@@ -112,6 +112,9 @@
   <script src="/app-shell.js"></script>
   <script>
     (() => {
+      if (window.__idTagInitDone) return;
+      window.__idTagInitDone = true;
+
       const tagRows = document.getElementById('tagRows');
       const addIdTagBtn = document.getElementById('addIdTagBtn');
       const emptyState = document.getElementById('tagsEmptyState');
@@ -228,11 +231,19 @@
         }
       }
 
+      function renderEmptyState() {
+        tagRows.innerHTML = `
+          <div class="k-row k-empty-row">
+            <span style="grid-column: 1 / -1; text-align: center; color: #9ca3af;">Belum ada ID Tag</span>
+          </div>
+        `;
+        emptyState.hidden = true;
+      }
+
       function renderRows() {
         tagRows.innerHTML = '';
         if (!currentTags.length) {
-          emptyState.hidden = false;
-          closeAllModals();
+          renderEmptyState();
           return;
         }
         emptyState.hidden = true;
