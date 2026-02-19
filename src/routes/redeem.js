@@ -67,14 +67,18 @@ function ensureRedeemSchema() {
       )
     `);
   }
+
+  ensureColumn('redeem_credits', 'created_at', "created_at TEXT NOT NULL DEFAULT (datetime('now'))");
+  db.exec("UPDATE redeem_credits SET created_at = COALESCE(created_at, datetime('now'))");
 }
 
 ensureRedeemSchema();
 
 const BATCH_OPEN_STATUS = getBatchOpenStatus();
-const TAG_CODE_COLUMN = pickColumn('tags', ['code12', 'unique_code']);
-const TAG_NAME_COLUMN = pickColumn('tags', ['name', 'label']);
-const TAG_ENABLED_COLUMN = pickColumn('tags', ['enabled', 'is_active']);
+const TAG_CODE_COLUMN = pickColumn('tags', ['unique_code']);
+const TAG_NAME_COLUMN = pickColumn('tags', ['tag_name']);
+const TAG_ACTIVE_COLUMN = pickColumn('tags', ['is_active']);
+const TAG_ENABLED_COLUMN = pickColumn('tags', ['enabled']);
 
 function getSessionUserId(req) {
   return req.session?.userId || req.session?.user_id || null;
@@ -253,17 +257,23 @@ const claimTx = db.transaction((userId, code12) => {
   }
 
   if (!TAG_CODE_COLUMN) {
-    const error = new Error('Kolom code tag tidak ditemukan.');
+    const error = new Error('Kolom unique_code pada tabel tags tidak ditemukan.');
     error.statusCode = 500;
     throw error;
   }
 
-  const insertColumns = ['user_id', TAG_CODE_COLUMN];
-  const insertValues = [userId, code12];
+  if (!TAG_NAME_COLUMN) {
+    const error = new Error('Kolom tag_name pada tabel tags tidak ditemukan.');
+    error.statusCode = 500;
+    throw error;
+  }
 
-  if (TAG_NAME_COLUMN) {
-    insertColumns.push(TAG_NAME_COLUMN);
-    insertValues.push('Bandul');
+  const insertColumns = ['user_id', TAG_NAME_COLUMN, TAG_CODE_COLUMN];
+  const insertValues = [userId, 'Bandul', code12];
+
+  if (TAG_ACTIVE_COLUMN) {
+    insertColumns.push(TAG_ACTIVE_COLUMN);
+    insertValues.push(0);
   }
 
   if (TAG_ENABLED_COLUMN) {
