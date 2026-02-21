@@ -75,10 +75,14 @@ function ensureRedeemSchema() {
 ensureRedeemSchema();
 
 const BATCH_OPEN_STATUS = getBatchOpenStatus();
-const TAG_CODE_COLUMN = pickColumn('tags', ['unique_code']);
-const TAG_NAME_COLUMN = pickColumn('tags', ['tag_name']);
-const TAG_ACTIVE_COLUMN = pickColumn('tags', ['is_active']);
+const TAG_CODE_MODERN_COLUMN = pickColumn('tags', ['code12']);
+const TAG_CODE_LEGACY_COLUMN = pickColumn('tags', ['unique_code']);
+const TAG_NAME_MODERN_COLUMN = pickColumn('tags', ['name']);
+const TAG_NAME_LEGACY_COLUMN = pickColumn('tags', ['tag_name', 'label']);
 const TAG_ENABLED_COLUMN = pickColumn('tags', ['enabled']);
+const TAG_ACTIVE_COLUMN = pickColumn('tags', ['is_active']);
+const TAG_DIRECT_LINK_MODERN_COLUMN = pickColumn('tags', ['contact_link_override']);
+const TAG_DIRECT_LINK_LEGACY_COLUMN = pickColumn('tags', ['direct_link']);
 
 function getSessionUserId(req) {
   return req.session?.userId || req.session?.user_id || null;
@@ -111,11 +115,17 @@ function randomCode12() {
 }
 
 function isCodeUsedInTags(code12) {
-  if (!TAG_CODE_COLUMN) return false;
-  const row = db
-    .prepare(`SELECT 1 FROM tags WHERE ${quoteIdent(TAG_CODE_COLUMN)} = ? LIMIT 1`)
-    .get(code12);
-  return Boolean(row);
+  const codeColumns = [TAG_CODE_MODERN_COLUMN, TAG_CODE_LEGACY_COLUMN].filter(Boolean);
+  if (!codeColumns.length) return false;
+
+  for (const codeColumn of codeColumns) {
+    const row = db
+      .prepare(`SELECT 1 FROM tags WHERE ${quoteIdent(codeColumn)} = ? LIMIT 1`)
+      .get(code12);
+    if (row) return true;
+  }
+
+  return false;
 }
 
 function getReservedOpenCodes() {
@@ -256,30 +266,34 @@ const claimTx = db.transaction((userId, code12) => {
     throw error;
   }
 
-  if (!TAG_CODE_COLUMN) {
-    const error = new Error('Kolom unique_code pada tabel tags tidak ditemukan.');
+  const codeColumns = [TAG_CODE_MODERN_COLUMN, TAG_CODE_LEGACY_COLUMN].filter(Boolean);
+  if (!codeColumns.length) {
+    const error = new Error('Kolom code12/unique_code pada tabel tags tidak ditemukan.');
     error.statusCode = 500;
     throw error;
   }
 
-  if (!TAG_NAME_COLUMN) {
-    const error = new Error('Kolom tag_name pada tabel tags tidak ditemukan.');
+  const nameColumns = [TAG_NAME_MODERN_COLUMN, TAG_NAME_LEGACY_COLUMN].filter(Boolean);
+  if (!nameColumns.length) {
+    const error = new Error('Kolom name/tag_name pada tabel tags tidak ditemukan.');
     error.statusCode = 500;
     throw error;
   }
 
-  const insertColumns = ['user_id', TAG_NAME_COLUMN, TAG_CODE_COLUMN];
-  const insertValues = [userId, 'Bandul', code12];
+  const insertMap = new Map();
+  insertMap.set('user_id', userId);
 
-  if (TAG_ACTIVE_COLUMN) {
-    insertColumns.push(TAG_ACTIVE_COLUMN);
-    insertValues.push(0);
-  }
+  for (const column of nameColumns) insertMap.set(column, 'Bandul');
+  for (const column of codeColumns) insertMap.set(column, code12);
 
-  if (TAG_ENABLED_COLUMN) {
-    insertColumns.push(TAG_ENABLED_COLUMN);
-    insertValues.push(0);
-  }
+  if (TAG_ENABLED_COLUMN) insertMap.set(TAG_ENABLED_COLUMN, 0);
+  if (TAG_ACTIVE_COLUMN) insertMap.set(TAG_ACTIVE_COLUMN, 0);
+
+  if (TAG_DIRECT_LINK_MODERN_COLUMN) insertMap.set(TAG_DIRECT_LINK_MODERN_COLUMN, '');
+  if (TAG_DIRECT_LINK_LEGACY_COLUMN) insertMap.set(TAG_DIRECT_LINK_LEGACY_COLUMN, '');
+
+  const insertColumns = Array.from(insertMap.keys());
+  const insertValues = Array.from(insertMap.values());
 
   const tagsColumns = new Set(getColumns('tags').map((column) => column.name));
   if (tagsColumns.has('created_at')) {

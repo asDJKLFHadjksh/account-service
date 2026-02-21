@@ -161,10 +161,10 @@
       function mapTag(raw) {
         return {
           id: raw.id,
-          name: String(raw.name ?? raw.tag_name ?? '-'),
-          code12: String(raw.code12 ?? raw.unique_code ?? ''),
-          meet_location_text: String(raw.meet_location_text ?? raw.location_note ?? ''),
-          contact_link_override: String(raw.contact_link_override ?? raw.direct_link ?? ''),
+          name: (String(raw.tag_name || raw.name || '').trim() || 'Bandul'),
+          code12: String(raw.unique_code ?? raw.code12 ?? ''),
+          meet_location_text: String(raw.location_note ?? raw.meet_location_text ?? ''),
+          contact_link_override: String(raw.direct_link ?? raw.contact_link_override ?? ''),
           enabled: Boolean(raw.enabled ?? raw.is_active),
         };
       }
@@ -182,7 +182,7 @@
         return apiFetch(`/api/tags/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
       }
       async function apiToggleTag(id, enabled) {
-        return apiFetch(`/api/tags/${id}/toggle`, { method: 'PATCH', body: JSON.stringify({ enabled }) });
+        return apiFetch(`/api/tags/${id}/toggle`, { method: 'PATCH', body: JSON.stringify({ is_active: enabled, enabled }) });
       }
       async function apiGetRedeemBatch() { return apiFetch('/api/redeem/batch'); }
       async function apiClaimRedeemCode(code12) {
@@ -369,9 +369,9 @@
         if (!editingTagId) return;
 
         const payload = {
-          name: nameInput.value.trim(),
-          meet_location_text: locationInput.value.trim(),
-          contact_link_override: linkInput.value.trim(),
+          tag_name: nameInput.value.trim(),
+          location_note: locationInput.value.trim(),
+          direct_link: linkInput.value.trim(),
         };
 
         const submitBtn = editForm.querySelector('button[type="submit"]');

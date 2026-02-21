@@ -92,15 +92,15 @@ class TagService {
       tags: {
         id: pickFirst(refreshedTagCols, ['id']),
         userId: pickFirst(refreshedTagCols, ['user_id']),
-        code12: pickFirst(refreshedTagCols, ['code12']),
-        name: pickFirst(refreshedTagCols, ['name', 'label']),
+        code12: pickFirst(refreshedTagCols, ['code12', 'unique_code']),
+        name: pickFirst(refreshedTagCols, ['name', 'label', 'tag_name']),
         enabled: pickFirst(refreshedTagCols, ['enabled', 'is_enabled', 'is_active', 'active']),
-        contactLinkOverride: pickFirst(refreshedTagCols, ['contact_link_override', 'direct_link_override']),
+        contactLinkOverride: pickFirst(refreshedTagCols, ['contact_link_override', 'direct_link_override', 'direct_link']),
         createdAt: pickFirst(refreshedTagCols, ['created_at']),
         updatedAt: pickFirst(refreshedTagCols, ['updated_at']),
         notes: pickFirst(refreshedTagCols, ['notes']),
         description: pickFirst(refreshedTagCols, ['description']),
-        meetLocationText: pickFirst(refreshedTagCols, ['meet_location_text']),
+        meetLocationText: pickFirst(refreshedTagCols, ['meet_location_text', 'location_note']),
       },
       templates: {
         userId: pickFirst(refreshedTemplateCols, ['user_id']),
@@ -122,9 +122,20 @@ class TagService {
 
   mapTagRow(row) {
     if (!row) return null;
+
+    const rawName = String(row.name ?? row.tag_name ?? row.label ?? '').trim();
+    const rawCode12 = String(row.code12 ?? row.unique_code ?? '').trim();
+    const rawLocation = String(row.meet_location_text ?? row.location_note ?? row.notes ?? '');
+    const rawLink = String(row.contact_link_override ?? row.direct_link ?? row.direct_link_override ?? '');
+    const rawEnabled = row.enabled ?? row.is_active ?? row.is_enabled ?? row.active;
+
     return {
       ...row,
-      enabled: Boolean(row[this.schema.tags.enabled]),
+      name: rawName || 'Bandul',
+      code12: rawCode12,
+      meet_location_text: rawLocation,
+      contact_link_override: rawLink,
+      enabled: Boolean(rawEnabled),
     };
   }
 
